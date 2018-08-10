@@ -53,6 +53,6 @@ public:
       IDirect3DDevice9** ppReturnedDeviceInterface) override;
 
 private:
-    ComPtr<IDXGIFactory> factory;
-    std::vector<Adapter> adapters;
+    ComPtr<IDXGIFactory> m_factory;
+    std::vector<Adapter> m_adapters;
 };

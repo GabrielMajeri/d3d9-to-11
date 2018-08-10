@@ -9,8 +9,8 @@ public:
 
 private:
     // Ordinal of this adapter in the list of GPUs.
-    UINT index;
+    UINT m_index;
 
     // DXGI interface representing a physical device.
-    ComPtr<IDXGIAdapter> adapter;
+    ComPtr<IDXGIAdapter> m_adapter;
 };

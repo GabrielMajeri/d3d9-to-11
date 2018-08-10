@@ -1,18 +1,18 @@
 #include "core.hpp"
 
-#define CHECK_ADAPTER(adapter) { if ((adapter) >= adapters.size()) return D3DERR_INVALIDCALL; }
+#define CHECK_ADAPTER(adapter) { if ((adapter) >= m_adapters.size()) return D3DERR_INVALIDCALL; }
 #define CHECK_DEVTYPE(dev_ty) { if ((dev_ty) != D3DDEVTYPE_HAL) return D3DERR_INVALIDCALL; }
 
 Core::Core() {
     // We first have to create a factory, which is the equivalent of this interface in DXGI terms.
-    const auto result = CreateDXGIFactory(factory.uuid(), (void**)&factory);
+    const auto result = CreateDXGIFactory(m_factory.uuid(), (void**)&m_factory);
     assert(SUCCEEDED(result) && "Failed to create DXGI factory");
 
     // Now we can enumerate all the graphics adapters on the system.
     UINT id = 0;
     ComPtr<IDXGIAdapter> adapter;
     while (factory->EnumAdapters(id, &adapter) != DXGI_ERROR_NOT_FOUND) {
-        adapters.emplace_back(id++, std::move(adapter));
+        m_adapters.emplace_back(id++, std::move(adapter));
     }
 }
 
@@ -25,7 +25,7 @@ HRESULT Core::RegisterSoftwareDevice(void* pInitializeFunction) {
 }
 
 UINT Core::GetAdapterCount() {
-    return adapters.size();
+    return m_adapters.size();
 }
 
 HRESULT Core::GetAdapterIdentifier(UINT Adapter, DWORD Flags, D3DADAPTER_IDENTIFIER9* pIdentifier) {
@@ -35,7 +35,7 @@ HRESULT Core::GetAdapterIdentifier(UINT Adapter, DWORD Flags, D3DADAPTER_IDENTIF
     // Note: we ignore the flag, since it's only possible value, D3DENUM_WHQL_LEVEL,
     // is deprecated and irrelevant on Wine / newer versions of Windows.
 
-    auto& adapter = adapters[Adapter];
+    auto& adapter = m_adapters[Adapter];
     auto& id = *pIdentifier;
 
     adapter.get_identifier(id);
