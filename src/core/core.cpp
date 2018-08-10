@@ -80,8 +80,23 @@ HRESULT Core::CheckDeviceFormat(UINT Adapter, D3DDEVTYPE DevType,
 }
 
 HRESULT Core::CheckDeviceMultiSampleType(UINT Adapter, D3DDEVTYPE DevType,
-    D3DFORMAT SurfaceFormat, BOOL Windowed, D3DMULTISAMPLE_TYPE MultiSampleType, DWORD* pQualityLevels) {
-    METHOD_STUB;
+    D3DFORMAT SurfaceFormat, BOOL Windowed,
+    D3DMULTISAMPLE_TYPE MultiSampleType, DWORD* pQualityLevels) {
+    CHECK_ADAPTER(Adapter);
+    CHECK_DEVTYPE(DevType);
+
+    // Ask D3D11 to tell us if it supports MS for this format.
+    UINT quality = 0;
+    m_adapters[Adapter].check_multisample_support(SurfaceFormat,
+        MultiSampleType, quality);
+
+    // Return the maximum quality level, if requested.
+    if (pQualityLevels) {
+        *pQualityLevels = quality;
+    }
+
+    // Quality of 0 would mean no support for MS.
+    return quality ? D3D_OK : D3DERR_NOTAVAILABLE;
 }
 
 HRESULT Core::CheckDepthStencilMatch(UINT Adapter, D3DDEVTYPE DevType,

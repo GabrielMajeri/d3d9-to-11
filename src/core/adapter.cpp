@@ -87,3 +87,10 @@ HRESULT Adapter::check_format_support(DWORD usage, D3DRESOURCETYPE rt, D3DFORMAT
 
     return D3D_OK;
 }
+
+void Adapter::check_multisample_support(D3DFORMAT fmt, D3DMULTISAMPLE_TYPE ms, UINT& quality) const noexcept {
+    const auto format = d3d_format_to_dxgi_format(fmt);
+
+    // Even if this fails, quality is pre-initialized to 0.
+    m_device->CheckMultisampleQualityLevels(format, ms, &quality);
+}

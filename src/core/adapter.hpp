@@ -11,6 +11,10 @@ public:
     // Checks if a given format is supported for a specific resource usage.
     HRESULT check_format_support(DWORD usage, D3DRESOURCETYPE rt, D3DFORMAT format) const noexcept;
 
+    // Checks if we support multisampling for a given format.
+    void check_multisample_support(D3DFORMAT fmt,
+        D3DMULTISAMPLE_TYPE ms, UINT& quality) const noexcept;
+
 private:
     // Ordinal of this adapter in the list of GPUs.
     UINT m_index;

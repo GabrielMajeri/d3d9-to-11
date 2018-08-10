@@ -8,9 +8,10 @@
 // A macro is used to make the list bidirectional.
 #define FORMATS_LIST \
     FORMAT(D3DFMT_UNKNOWN, DXGI_FORMAT_UNKNOWN) \
+    FORMAT(D3DFMT_X8R8G8B8, DXGI_FORMAT_B8G8R8X8_UNORM) \
     FORMAT(D3DFMT_A16B16G16R16F, DXGI_FORMAT_R16G16B16A16_FLOAT)
 
-DXGI_FORMAT d3d_format_to_dxgi_format(UINT fmt) noexcept {
+DXGI_FORMAT d3d_format_to_dxgi_format(D3DFORMAT fmt) noexcept {
     switch (fmt) {
         #define FORMAT(a, b) case a: return b;
         FORMATS_LIST
@@ -21,7 +22,7 @@ DXGI_FORMAT d3d_format_to_dxgi_format(UINT fmt) noexcept {
     }
 }
 
-UINT dxgi_format_to_d3d_format(DXGI_FORMAT fmt) noexcept {
+D3DFORMAT dxgi_format_to_d3d_format(DXGI_FORMAT fmt) noexcept {
     switch (fmt) {
         #define FORMAT(a, b) case b: return a;
         FORMATS_LIST
@@ -32,7 +33,7 @@ UINT dxgi_format_to_d3d_format(DXGI_FORMAT fmt) noexcept {
     }
 }
 
-bool is_display_mode_format(UINT fmt) noexcept {
+bool is_display_mode_format(D3DFORMAT fmt) noexcept {
     // Thankfully, these formats form a contiguous range.
     if (D3DFMT_A8R8G8B8 <= fmt && fmt <= D3DFMT_A1R5G5B5)
         return true;
