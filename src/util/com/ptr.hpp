@@ -8,7 +8,10 @@ class ComPtr final {
 public:
     // This private class is used to hide away the IUnknown methods from the wrapped type.
     // This way, only this class is allowed to handle reference counting.
-    class HideIUnknown final: public I {
+    class HideIUnknown: public I {
+        HideIUnknown() = delete;
+        ~HideIUnknown() = delete;
+
         HRESULT WINAPI QueryInterface(REFIID riid, void** ppvObject);
         ULONG WINAPI AddRef();
         ULONG WINAPI Release();
@@ -26,7 +29,7 @@ public:
 
     /// Move constructor.
     template <typename T>
-    ComPtr(const ComPtr<T>&& rhs)
+    ComPtr(ComPtr<T>&& rhs)
         : ptr { std::exchange(rhs.ptr, nullptr) } {
     }
 
@@ -71,7 +74,7 @@ public:
     }
 
     HideIUnknown* operator->() const noexcept {
-        return ptr;
+        return static_cast<HideIUnknown*>(ptr);
     }
 
     I** operator&() noexcept {
@@ -80,7 +83,9 @@ public:
     }
 
     /// Simplifies obtaining the UUID of the wrapped interface.
-    inline const static auto& uuid = __uuidof(I);
+    inline const auto& uuid() const noexcept {
+        return __uuidof(I);
+    }
 
 private:
     void add_ref() const noexcept {
