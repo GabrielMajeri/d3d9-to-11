@@ -5,6 +5,22 @@
 
 Adapter::Adapter(UINT index, ComPtr<IDXGIAdapter>&& adapter) noexcept
     : m_index{ index }, m_adapter { std::move(adapter) } {
+    const auto result = D3D11CreateDevice(
+        // Create a device for the adapter we own.
+        m_adapter.as_raw(),
+        D3D_DRIVER_TYPE_UNKNOWN, nullptr,
+        // No additional flags.
+        0,
+        // We will use whichever feature level is supported.
+        nullptr, 0,
+        D3D11_SDK_VERSION,
+        &m_device,
+        &m_feature_level,
+        // We do not need a context for now.
+        nullptr
+    );
+
+    assert(SUCCEEDED(result) && "Failed to create D3D11 device");
 }
 
 void Adapter::get_identifier(D3DADAPTER_IDENTIFIER9& id) const noexcept {

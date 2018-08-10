@@ -11,7 +11,7 @@ Core::Core() {
     // Now we can enumerate all the graphics adapters on the system.
     UINT id = 0;
     ComPtr<IDXGIAdapter> adapter;
-    while (factory->EnumAdapters(id, &adapter) != DXGI_ERROR_NOT_FOUND) {
+    while (m_factory->EnumAdapters(id, &adapter) != DXGI_ERROR_NOT_FOUND) {
         m_adapters.emplace_back(id++, std::move(adapter));
     }
 }

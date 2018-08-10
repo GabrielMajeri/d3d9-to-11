@@ -45,5 +45,6 @@ if compiler_id == 'gcc' or compiler_id == 'clang'
 endif
 
 dxgi_dep = compiler.find_library('dxgi')
+d3d11_dep = compiler.find_library('d3d11')
 
 subdir('src')

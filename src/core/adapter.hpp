@@ -13,4 +13,11 @@ private:
 
     // DXGI interface representing a physical device.
     ComPtr<IDXGIAdapter> m_adapter;
+
+    // With D3D11, obtaining a device's capabilities or checking for texture format support
+    // requires us to create the device first.
+    ComPtr<ID3D11Device> m_device;
+
+    // The highest-supported feature level of this device.
+    D3D_FEATURE_LEVEL m_feature_level;
 };
