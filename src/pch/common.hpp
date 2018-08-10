@@ -7,7 +7,22 @@
 #include "api.hpp"
 #include "windows.hpp"
 
+#include <cassert>
+
+#include <atomic>
+#include <iostream>
+
 #include <d3d9.h>
 
 #include <dxgi.h>
 #include <d3d11.h>
+
+#include "../util/log.hpp"
+#include "../util/com/ptr.hpp"
+#include "../util/com/impl.hpp"
+
+/// This macro can be used in methods which are not yet implemented.
+/// The app will crash if they get called.
+#define METHOD_STUB \
+    std::cerr << __func__ << " is not implemented\n"; \
+    std::abort()

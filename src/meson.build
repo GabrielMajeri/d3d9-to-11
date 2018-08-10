@@ -1,5 +1,7 @@
 srcs = [
     'core/entrypoint.cpp',
+
+    'util/log.cpp',
 ]
 
 d3d9 = shared_library(
