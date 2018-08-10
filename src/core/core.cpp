@@ -1,5 +1,10 @@
 #include "core.hpp"
 
+#include <cstring>
+#include "../util/str.hpp"
+
+#define CHECK_ADAPTER(adapter) { if ((adapter) >= adapters.size()) return D3DERR_INVALIDCALL; }
+
 Core::Core() {
     const auto result = CreateDXGIFactory(factory.uuid(), (void**)&factory);
 
@@ -25,7 +30,44 @@ UINT Core::GetAdapterCount() {
 }
 
 HRESULT Core::GetAdapterIdentifier(UINT Adapter, DWORD Flags, D3DADAPTER_IDENTIFIER9* pIdentifier) {
-    METHOD_STUB;
+    CHECK_ADAPTER(Adapter);
+    CHECK_NOT_NULL(pIdentifier);
+
+    // Note: we ignore the flag, since it's only possible value, D3DENUM_WHQL_LEVEL,
+    // is deprecated and irrelevant on Wine / newer versions of Windows.
+
+    auto& id = *pIdentifier;
+
+    DXGI_ADAPTER_DESC desc;
+    assert(SUCCEEDED(adapters[Adapter]->GetDesc(&desc)));
+
+    // Internal identifier of the driver.
+    std::strcpy(id.Driver, "D3D 9-to-11 Driver");
+
+    // Human readable device description.
+    const auto description = str::join(str::convert(desc.Description), " (D3D 9-to-11 Device)");
+    std::strcpy(id.Description, description.data());
+
+    // Fake GDI device name
+    const auto device_name = str::join("DISPLAY", Adapter);
+    std::strcpy(id.DeviceName, device_name.data());
+
+    id.DriverVersion.QuadPart = 1;
+
+    // These fields are passed-through.
+    id.VendorId = desc.VendorId;
+    id.DeviceId = desc.DeviceId;
+    id.SubSysId = desc.SubSysId;
+    id.Revision = desc.Revision;
+
+    // D3D9 wants a 128-bit unique adapter identifier.
+    // We don't have anything like that available, so we combine a 64-bit LUID with the adapter's index.
+    std::memcpy(&id.DeviceIdentifier.Data1, &desc.AdapterLuid, sizeof(LUID));
+    std::memcpy(&id.DeviceIdentifier.Data4[0], &Adapter, sizeof(UINT));
+
+    id.WHQLLevel = 1;
+
+    return D3D_OK;
 }
 
 UINT Core::GetAdapterModeCount(UINT Adapter, D3DFORMAT Format) {
