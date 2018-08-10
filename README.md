@@ -1,5 +1,7 @@
 # Direct3D 9-to-11
 
+[![AppVeyor build status](https://ci.appveyor.com/api/projects/status/30d6a8gwk4w0u4h8?svg=true)](https://ci.appveyor.com/project/GuildMasterInfinite/d3d9-to-11)
+
 ## Scope of this project
 
 This project is an attempt to convert [Direct3D 9](https://en.wikipedia.org/wiki/Direct3D#Direct3D_9) programs
