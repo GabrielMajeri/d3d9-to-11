@@ -1,0 +1,5 @@
+# This file is used to tell Git which files to ignore.
+
+# Recommended directories for building the project.
+/build.w32
+/build.w64
