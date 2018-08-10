@@ -86,6 +86,7 @@ HRESULT Adapter::get_mode(D3DFORMAT fmt, UINT index, D3DDISPLAYMODE& mode) const
     mode.Width = m.Width;
     mode.Height = m.Height;
 
+    const auto rf = m.RefreshRate;
     if (rf.Denominator == 0) {
         mode.RefreshRate = 0;
     } else {
