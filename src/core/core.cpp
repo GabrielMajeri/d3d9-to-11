@@ -1,5 +1,7 @@
 #include "core.hpp"
 
+#include "format.hpp"
+
 #define CHECK_ADAPTER(adapter) { if ((adapter) >= m_adapters.size()) return D3DERR_INVALIDCALL; }
 #define CHECK_DEVTYPE(dev_ty) { if ((dev_ty) != D3DDEVTYPE_HAL) return D3DERR_INVALIDCALL; }
 
@@ -44,7 +46,14 @@ HRESULT Core::GetAdapterIdentifier(UINT Adapter, DWORD Flags, D3DADAPTER_IDENTIF
 }
 
 UINT Core::GetAdapterModeCount(UINT Adapter, D3DFORMAT Format) {
-    METHOD_STUB;
+    CHECK_ADAPTER(Adapter);
+
+    // Modern GPUs support back-buffers in any format, but the display's format cannot be changed.
+    // The back-buffer will be converted to the right format on the fly.
+    if (!is_display_mode_format(Format))
+        return D3DERR_NOTAVAILABLE;
+
+    return D3D_OK;
 }
 
 HRESULT Core::EnumAdapterModes(UINT Adapter, D3DFORMAT Format, UINT Mode, D3DDISPLAYMODE* pMode) {
@@ -65,8 +74,7 @@ HRESULT Core::CheckDeviceFormat(UINT Adapter, D3DDEVTYPE DevType,
     CHECK_ADAPTER(Adapter);
     CHECK_DEVTYPE(DevType);
 
-    // We ignore AdapterFormat, since modern GPUs allow any supported back-buffer format
-    // to be converted the display's format on the fly.
+    // We ignore AdapterFormat, see the comment in GetAdapterModeCount.
 
     return m_adapters[Adapter].check_format_support(Usage, RType, CheckFormat);
 }
