@@ -13,6 +13,7 @@
 #include <iostream>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include <d3d9.h>
 

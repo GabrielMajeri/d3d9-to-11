@@ -53,4 +53,5 @@ public:
 
 private:
     ComPtr<IDXGIFactory> factory;
+    std::vector<ComPtr<IDXGIAdapter>> adapters;
 };

@@ -1,9 +1,15 @@
 #include "core.hpp"
 
 Core::Core() {
-    const auto result = CreateDXGIFactory(factory.uuid, (void**)&factory);
+    const auto result = CreateDXGIFactory(factory.uuid(), (void**)&factory);
 
     assert(SUCCEEDED(result) && "Failed to create DXGI factory");
+
+    UINT id = 0;
+    ComPtr<IDXGIAdapter> adapter;
+    while (factory->EnumAdapters(id++, &adapter) != DXGI_ERROR_NOT_FOUND) {
+        adapters.push_back(std::move(adapter));
+    }
 }
 
 HRESULT Core::RegisterSoftwareDevice(void* pInitializeFunction) {
@@ -12,12 +18,10 @@ HRESULT Core::RegisterSoftwareDevice(void* pInitializeFunction) {
     log::warn("Application tried to register software device");
 
     return D3D_OK;
-
-    METHOD_STUB;
 }
 
 UINT Core::GetAdapterCount() {
-    METHOD_STUB;
+    return adapters.size();
 }
 
 HRESULT Core::GetAdapterIdentifier(UINT Adapter, DWORD Flags, D3DADAPTER_IDENTIFIER9* pIdentifier) {
