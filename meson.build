@@ -44,4 +44,6 @@ if compiler_id == 'gcc' or compiler_id == 'clang'
     endif
 endif
 
+dxgi_dep = compiler.find_library('dxgi')
+
 subdir('src')

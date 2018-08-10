@@ -1,6 +1,18 @@
 #include "core.hpp"
 
+Core::Core() {
+    const auto result = CreateDXGIFactory(factory.uuid, (void**)&factory);
+
+    assert(SUCCEEDED(result) && "Failed to create DXGI factory");
+}
+
 HRESULT Core::RegisterSoftwareDevice(void* pInitializeFunction) {
+    CHECK_NOT_NULL(pInitializeFunction);
+
+    log::warn("Application tried to register software device");
+
+    return D3D_OK;
+
     METHOD_STUB;
 }
 

@@ -4,6 +4,8 @@
 
 class Core final: public ComImpl<IDirect3D9> {
 public:
+    Core();
+
     HRESULT WINAPI RegisterSoftwareDevice(void* pInitializeFunction) override;
 
     UINT WINAPI GetAdapterCount() override;
@@ -50,4 +52,5 @@ public:
       IDirect3DDevice9** ppReturnedDeviceInterface) override;
 
 private:
+    ComPtr<IDXGIFactory> factory;
 };

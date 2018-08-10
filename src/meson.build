@@ -8,6 +8,7 @@ srcs = [
 d3d9 = shared_library(
     'd3d9',
     sources : srcs,
+    dependencies : [ dxgi_dep ],
     cpp_pch : 'pch/common.hpp',
     name_prefix : '',
     name_suffix : 'dll',
