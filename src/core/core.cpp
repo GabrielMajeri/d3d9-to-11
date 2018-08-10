@@ -62,7 +62,13 @@ HRESULT Core::CheckDeviceType(UINT Adapter, D3DDEVTYPE DevType,
 
 HRESULT Core::CheckDeviceFormat(UINT Adapter, D3DDEVTYPE DevType,
     D3DFORMAT AdapterFormat, DWORD Usage, D3DRESOURCETYPE RType, D3DFORMAT CheckFormat) {
-    METHOD_STUB;
+    CHECK_ADAPTER(Adapter);
+    CHECK_DEVTYPE(DevType);
+
+    // We ignore AdapterFormat, since modern GPUs allow any supported back-buffer format
+    // to be converted the display's format on the fly.
+
+    return m_adapters[Adapter].check_format_support(Usage, RType, CheckFormat);
 }
 
 HRESULT Core::CheckDeviceMultiSampleType(UINT Adapter, D3DDEVTYPE DevType,

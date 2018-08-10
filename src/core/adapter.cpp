@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include "../util/str.hpp"
+#include "format.hpp"
 
 Adapter::Adapter(UINT index, ComPtr<IDXGIAdapter>&& adapter) noexcept
     : m_index{ index }, m_adapter { std::move(adapter) } {
@@ -52,4 +53,37 @@ void Adapter::get_identifier(D3DADAPTER_IDENTIFIER9& id) const noexcept {
     std::memcpy(&id.DeviceIdentifier.Data4[0], &m_index, sizeof(UINT));
 
     id.WHQLLevel = 1;
+}
+
+HRESULT Adapter::check_format_support(DWORD usage, D3DRESOURCETYPE rt, D3DFORMAT format) const noexcept {
+    DXGI_FORMAT fmt = d3d_format_to_dxgi_format(format);
+
+    UINT support = 0;
+    if (FAILED(m_device->CheckFormatSupport(fmt, &support)))
+        return D3DERR_NOTAVAILABLE;
+
+    // Macro to check if the resource type is supported.
+    // Returns true if a resource type is _not_ supported.
+    #define CHECK_RT_SUPPORT(a, b) (rt == D3DRTYPE_ ## a && (support & D3D11_FORMAT_SUPPORT_ ## b) == 0)
+
+    if (CHECK_RT_SUPPORT(SURFACE, TEXTURE2D) ||
+        CHECK_RT_SUPPORT(VOLUME, TEXTURE3D) ||
+        CHECK_RT_SUPPORT(TEXTURE, TEXTURE2D) ||
+        CHECK_RT_SUPPORT(VOLUMETEXTURE, TEXTURE3D) ||
+        CHECK_RT_SUPPORT(CUBETEXTURE, TEXTURECUBE) ||
+        CHECK_RT_SUPPORT(VERTEXBUFFER, IA_VERTEX_BUFFER) ||
+        CHECK_RT_SUPPORT(INDEXBUFFER, IA_INDEX_BUFFER)) {
+        return D3DERR_NOTAVAILABLE;
+    }
+
+    // Similar to macro above.
+    #define CHECK_USAGE(a, b) (((usage & D3DUSAGE_##a) != 0) && ((support & D3D11_FORMAT_SUPPORT_##b) == 0))
+
+    if (CHECK_USAGE(AUTOGENMIPMAP, MIP_AUTOGEN) ||
+        CHECK_USAGE(RENDERTARGET, RENDER_TARGET) ||
+        CHECK_USAGE(DEPTHSTENCIL, DEPTH_STENCIL)) {
+        return D3DERR_NOTAVAILABLE;
+    }
+
+    return D3D_OK;
 }

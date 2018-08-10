@@ -5,7 +5,11 @@ class Adapter final {
 public:
     Adapter(UINT index, ComPtr<IDXGIAdapter>&& adapter) noexcept;
 
+    // Retrieves a description of this adapter.
     void get_identifier(D3DADAPTER_IDENTIFIER9& id) const noexcept;
+
+    // Checks if a given format is supported for a specific resource usage.
+    HRESULT check_format_support(DWORD usage, D3DRESOURCETYPE rt, D3DFORMAT format) const noexcept;
 
 private:
     // Ordinal of this adapter in the list of GPUs.
