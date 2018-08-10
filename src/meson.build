@@ -3,6 +3,7 @@ srcs = [
     'core/core.cpp',
 
     'util/log.cpp',
+    'util/str.cpp',
 ]
 
 d3d9 = shared_library(
