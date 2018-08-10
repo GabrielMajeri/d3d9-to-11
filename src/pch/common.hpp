@@ -11,6 +11,8 @@
 
 #include <atomic>
 #include <iostream>
+#include <type_traits>
+#include <utility>
 
 #include <d3d9.h>
 
@@ -26,3 +28,6 @@
 #define METHOD_STUB \
     std::cerr << __func__ << " is not implemented\n"; \
     std::abort()
+
+/// Since we often have to validate pointer parameters, this macro encapsulates the check.
+#define CHECK_NOT_NULL(ptr) { if ((ptr) == nullptr) { return D3DERR_INVALIDCALL; } }
