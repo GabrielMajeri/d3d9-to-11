@@ -1,6 +1,7 @@
 srcs = [
     'core/entrypoint.cpp',
     'core/core.cpp',
+    'core/adapter.cpp',
 
     'util/log.cpp',
     'util/str.cpp',

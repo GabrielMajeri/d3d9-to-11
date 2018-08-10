@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../util/com/impl.hpp"
+#include "adapter.hpp"
 
 class Core final: public ComImpl<IDirect3D9> {
 public:
@@ -53,5 +54,5 @@ public:
 
 private:
     ComPtr<IDXGIFactory> factory;
-    std::vector<ComPtr<IDXGIAdapter>> adapters;
+    std::vector<Adapter> adapters;
 };

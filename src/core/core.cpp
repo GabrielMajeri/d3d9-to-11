@@ -1,19 +1,18 @@
 #include "core.hpp"
 
-#include <cstring>
-#include "../util/str.hpp"
-
 #define CHECK_ADAPTER(adapter) { if ((adapter) >= adapters.size()) return D3DERR_INVALIDCALL; }
+#define CHECK_DEVTYPE(dev_ty) { if ((dev_ty) != D3DDEVTYPE_HAL) return D3DERR_INVALIDCALL; }
 
 Core::Core() {
+    // We first have to create a factory, which is the equivalent of this interface in DXGI terms.
     const auto result = CreateDXGIFactory(factory.uuid(), (void**)&factory);
-
     assert(SUCCEEDED(result) && "Failed to create DXGI factory");
 
+    // Now we can enumerate all the graphics adapters on the system.
     UINT id = 0;
     ComPtr<IDXGIAdapter> adapter;
-    while (factory->EnumAdapters(id++, &adapter) != DXGI_ERROR_NOT_FOUND) {
-        adapters.push_back(std::move(adapter));
+    while (factory->EnumAdapters(id, &adapter) != DXGI_ERROR_NOT_FOUND) {
+        adapters.emplace_back(id++, std::move(adapter));
     }
 }
 
@@ -36,36 +35,10 @@ HRESULT Core::GetAdapterIdentifier(UINT Adapter, DWORD Flags, D3DADAPTER_IDENTIF
     // Note: we ignore the flag, since it's only possible value, D3DENUM_WHQL_LEVEL,
     // is deprecated and irrelevant on Wine / newer versions of Windows.
 
+    auto& adapter = adapters[Adapter];
     auto& id = *pIdentifier;
 
-    DXGI_ADAPTER_DESC desc;
-    assert(SUCCEEDED(adapters[Adapter]->GetDesc(&desc)));
-
-    // Internal identifier of the driver.
-    std::strcpy(id.Driver, "D3D 9-to-11 Driver");
-
-    // Human readable device description.
-    const auto description = str::join(str::convert(desc.Description), " (D3D 9-to-11 Device)");
-    std::strcpy(id.Description, description.data());
-
-    // Fake GDI device name
-    const auto device_name = str::join("DISPLAY", Adapter);
-    std::strcpy(id.DeviceName, device_name.data());
-
-    id.DriverVersion.QuadPart = 1;
-
-    // These fields are passed-through.
-    id.VendorId = desc.VendorId;
-    id.DeviceId = desc.DeviceId;
-    id.SubSysId = desc.SubSysId;
-    id.Revision = desc.Revision;
-
-    // D3D9 wants a 128-bit unique adapter identifier.
-    // We don't have anything like that available, so we combine a 64-bit LUID with the adapter's index.
-    std::memcpy(&id.DeviceIdentifier.Data1, &desc.AdapterLuid, sizeof(LUID));
-    std::memcpy(&id.DeviceIdentifier.Data4[0], &Adapter, sizeof(UINT));
-
-    id.WHQLLevel = 1;
+    adapter.get_identifier(id);
 
     return D3D_OK;
 }
