@@ -11,6 +11,32 @@ Well, on Linux, the situation isn't so good.
 
 The whole idea is that this project would be combined with [DXVK](https://github.com/doitsujin/dxvk/), which would then translate D3D9 to D3D11.
 
+## Building
+
+The project's uses [Meson](https://mesonbuild.com/) as its build system.
+You should install the latest stable version of Meson for best compatibility and performance.
+
+[Ninja](https://ninja-build.org/) is also recommended to speed up builds compared to Makefiles.
+
+To cross-compile from Linux to Wine/Windows, you need a cross-compiler which is provided by the [MinGW-w64 project](http://mingw-w64.org/doku.php).
+
+Here is how to build the project using MinGW's GCC:
+
+```sh
+meson 'build.w32' --cross-file 'toolchain/gcc-w32.txt'
+cd 'build.w32'
+ninja
+```
+
+However, you needn't use `mingw-w64-gcc` when developing: in fact, the developer uses (and recommends) Clang instead.
+Clang is a native cross-compiler. **You still need to install MinGW fully** to obtain their linker / libraries / headers,
+but please use `toolchain/clang-w32.txt` files for a better development experience.
+
+## Using
+
+The result of the build process is a `D3D9.dll` file which should be placed in a game's executable directory.
+Use `winecfg` to set this DLL override to "Native".
+
 ## Why not VK9
 
 You might have hear of the [VK9](https://github.com/disks86/VK9) project, which aims to convert D3D9 to Vulkan directly.
