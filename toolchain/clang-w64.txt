@@ -1,0 +1,14 @@
+[binaries]
+cpp = 'clang++'
+ar = 'ar'
+strip = 'strip'
+
+[properties]
+cpp_args = ['-target', 'x86_64-pc-windows-gnu']
+cpp_link_args = ['-target', 'x86_64-pc-windows-gnu']
+
+[host_machine]
+system = 'windows'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'
