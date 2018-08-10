@@ -6,6 +6,11 @@
 
 Adapter::Adapter(UINT index, ComPtr<IDXGIAdapter>&& adapter) noexcept
     : m_index{ index }, m_adapter { std::move(adapter) } {
+    // D3D9 only supports one monitor per adapter.
+    // TODO: allow user to choose which monitor they want to use.
+    assert(SUCCEEDED(m_adapter->EnumOutputs(0, &m_output))
+        && "Failed to retrieve adapter's output");
+
     const auto result = D3D11CreateDevice(
         // Create a device for the adapter we own.
         m_adapter.as_raw(),
@@ -55,6 +60,43 @@ void Adapter::get_identifier(D3DADAPTER_IDENTIFIER9& id) const noexcept {
     id.WHQLLevel = 1;
 }
 
+UINT Adapter::get_mode_count(D3DFORMAT fmt) const noexcept {
+    // It's likely the app will also call `get_mode` soon after calling this function,
+    // so we cache the mode list now.
+    cache_display_modes(fmt);
+
+    return m_modes.find(fmt)->second.size();
+}
+
+// Retrieves the display mode of a certain index.
+HRESULT Adapter::get_mode(D3DFORMAT fmt, UINT index, D3DDISPLAYMODE& mode) const noexcept {
+    // See if we need to update the cache.
+    cache_display_modes(fmt);
+
+    const auto modes = m_modes.find(fmt);
+
+    // Cache should contain an empty vector even if a format is not supported.
+    const auto& mds = modes->second;
+
+    if (index >= mds.size())
+        return D3DERR_NOTAVAILABLE;
+
+    const auto& m = mds[index];
+
+    mode.Width = m.Width;
+    mode.Height = m.Height;
+
+    if (rf.Denominator == 0) {
+        mode.RefreshRate = 0;
+    } else {
+        mode.RefreshRate = rf.Numerator / rf.Denominator;
+    }
+
+    mode.Format = fmt;
+
+    return D3D_OK;
+}
+
 HRESULT Adapter::check_format_support(DWORD usage, D3DRESOURCETYPE rt, D3DFORMAT format) const noexcept {
     DXGI_FORMAT fmt = d3d_format_to_dxgi_format(format);
 
@@ -93,4 +135,25 @@ void Adapter::check_multisample_support(D3DFORMAT fmt, D3DMULTISAMPLE_TYPE ms, U
 
     // Even if this fails, quality is pre-initialized to 0.
     m_device->CheckMultisampleQualityLevels(format, ms, &quality);
+}
+
+void Adapter::cache_display_modes(D3DFORMAT fmt) const noexcept {
+    // Nothing to do if already in cache.
+    if (m_modes.find(fmt) != m_modes.end())
+        return;
+
+    const auto format = d3d_format_to_dxgi_format(fmt);
+    const auto flags = 0;
+
+    // Determine how big the list should be.
+    UINT num = 0;
+    m_output->GetDisplayModeList(format, flags, &num, nullptr);
+
+    // Reserve space and store the mode descriptions.
+    std::vector<DXGI_MODE_DESC> mode_descs(num);
+    m_output->GetDisplayModeList(format, flags, &num, mode_descs.data());
+
+    // Even if the function calls fail, we still store the empty vectors
+    // to determine if they're cached or not.
+    m_modes.emplace(fmt, std::move(mode_descs));
 }

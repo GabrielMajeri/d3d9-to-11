@@ -53,11 +53,17 @@ UINT Core::GetAdapterModeCount(UINT Adapter, D3DFORMAT Format) {
     if (!is_display_mode_format(Format))
         return D3DERR_NOTAVAILABLE;
 
-    return D3D_OK;
+    return m_adapters[Adapter].get_mode_count(Format);
 }
 
 HRESULT Core::EnumAdapterModes(UINT Adapter, D3DFORMAT Format, UINT Mode, D3DDISPLAYMODE* pMode) {
-    METHOD_STUB;
+    CHECK_ADAPTER(Adapter);
+    CHECK_NOT_NULL(pMode);
+
+    if (!is_display_mode_format(Format))
+        return D3DERR_NOTAVAILABLE;
+
+    return m_adapters[Adapter].get_mode(Format, Mode, *pMode);
 }
 
 HRESULT Core::GetAdapterDisplayMode(UINT Adapter, D3DDISPLAYMODE* pMode) {
