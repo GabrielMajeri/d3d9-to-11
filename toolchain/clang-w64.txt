@@ -1,6 +1,6 @@
 [binaries]
-cpp = 'clang++'
 ar = 'ar'
+cpp = 'clang++'
 strip = 'strip'
 
 [properties]

@@ -1,8 +1,7 @@
 [binaries]
-c = 'i686-w64-mingw32-gcc'
+ar = 'ar'
 cpp = 'i686-w64-mingw32-g++'
-ar = 'i686-w64-mingw32-ar'
-strip = 'i686-w64-mingw32-strip'
+strip = 'strip'
 
 [host_machine]
 system = 'windows'
