@@ -22,37 +22,50 @@ public:
 
     /// Copy constructor. Templated to allow covariance.
     template <typename T>
-    ComPtr(const ComPtr<T>& rhs)
-        : ptr { rhs } {
+    ComPtr(const ComPtr<T>& rhs) noexcept
+        : ptr { rhs.ptr } {
         add_ref();
     }
 
     /// Move constructor.
     template <typename T>
-    ComPtr(ComPtr<T>&& rhs)
+    ComPtr(ComPtr<T>&& rhs) noexcept
         : ptr { std::exchange(rhs.ptr, nullptr) } {
     }
 
     /// Default destructor.
     ~ComPtr() noexcept {
-        release();
+        *this = nullptr;
     }
 
     template <typename T>
     ComPtr& operator=(const ComPtr<T>& rhs) noexcept {
-        copy(rhs.ptr);
+        if (ptr != rhs.ptr) {
+            *this = nullptr;
+            ptr = rhs.ptr;
+            add_ref();
+        }
+
         return *this;
     }
 
     template <typename T>
     ComPtr& operator=(ComPtr<T>&& rhs) noexcept {
-        move(rhs);
+        if (ptr != rhs.ptr) {
+            *this = nullptr;
+            ptr = std::exchange(rhs.ptr, nullptr);
+        }
+
         return *this;
     }
 
     /// To reset a ComPtr, assign nullptr to it.
     ComPtr& operator=(std::nullptr_t) noexcept {
-        release();
+        auto tmp = ptr;
+        if (tmp) {
+            ptr = nullptr;
+            tmp->Release();
+        }
         return *this;
     }
 
@@ -94,30 +107,6 @@ private:
         }
     }
 
-    void release() noexcept {
-        I* tmp = ptr;
-        if (tmp) {
-            ptr = nullptr;
-            tmp->Release();
-        }
-    }
-
-    void copy(I* rhs) noexcept {
-        if (ptr != rhs) {
-            release();
-            ptr = rhs;
-            add_ref();
-        }
-    }
-
-    template <typename T>
-    void move(ComPtr<T>& rhs) noexcept {
-        if (ptr != rhs.ptr) {
-            release();
-            ptr = std::exchange(rhs.ptr, nullptr);
-        }
-    }
-
     I* ptr = nullptr;
 
     template <typename T>
@@ -125,6 +114,11 @@ private:
 
     static_assert(std::is_base_of_v<IUnknown, I>, "ComPtr can only manage COM interfaces");
 };
+
+template <typename I>
+inline void swap(ComPtr<I>& lhs, ComPtr<I>& rhs) noexcept {
+    std::swap(lhs.ptr, rhs.ptr);
+}
 
 template <typename I>
 I* ref(I* iface) {
