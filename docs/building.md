@@ -34,3 +34,20 @@ cargo build --target i686-pc-windows-gnu
 And you're done. You can optionally append the `--release` flag to build an optimized release build.
 
 The built file is stored in `target/i686-pc-windows-gnu/<debug or release>/d3d9.dll`.
+
+### Building for 64-bit apps
+
+Most D3D9 games are 32-bit. If you happen upon a 64-bit D3D9 game,
+you will have to build the DLL for the corresponding target.
+
+First, add the 64-bit target with `rustup`:
+
+```sh
+rustup target add x86_64-pc-windows-gnu
+```
+
+You can then build the DLL with:
+
+```sh
+cargo build --target x86_64-pc-windows-gnu
+```

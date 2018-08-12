@@ -5,3 +5,6 @@ rustflags = [
     # We need the stdcall fixups to fix the name of the exported symbols.
     "-C", "link-args=toolchain/d3d9.def -Wl,--enable-stdcall-fixup"
 ]
+
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
