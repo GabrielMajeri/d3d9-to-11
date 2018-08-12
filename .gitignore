@@ -1,4 +1,4 @@
 # This file is used to tell Git which files to ignore.
 
-# Recommended directories for building the project.
-/build.*
+# Directory where Cargo will place the built files.
+/target/

@@ -1,0 +1,7 @@
+[target.i686-pc-windows-gnu]
+linker = "i686-w64-mingw32-gcc"
+rustflags = [
+    "-C", "panic=abort",
+    # We need the stdcall fixups to fix the name of the exported symbols.
+    "-C", "link-args=toolchain/d3d9.def -Wl,--enable-stdcall-fixup"
+]
