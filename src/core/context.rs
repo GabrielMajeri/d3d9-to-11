@@ -242,3 +242,30 @@ impl Context {
         unimplemented!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::mem;
+
+    fn new_context() -> ComPtr<IDirect3D9> {
+        let ptr = Box::into_raw(Box::new(Context::new()));
+        ComPtr::new(ptr as *mut IDirect3D9)
+    }
+
+    #[test]
+    fn context_lifetime() {
+        let ctx = new_context();
+
+        let original_count = unsafe { ctx.GetAdapterCount() };
+        assert!(original_count > 0, "No GPUs found on the system.");
+
+        let copy = ctx.clone();
+
+        mem::drop(ctx);
+
+        let count = unsafe { copy.GetAdapterCount() };
+
+        assert_eq!(original_count, count);
+    }
+}

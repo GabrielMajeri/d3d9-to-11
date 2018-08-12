@@ -18,4 +18,6 @@ The documentation is licensed under the [GNU Free Documentation License](license
 
 - [Building from source](building.md)
 
+- [Running the tests](tests.md)
+
 - [Graphics concepts mapping](concepts.md)
