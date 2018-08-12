@@ -24,7 +24,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "com-impl"
 version = "0.1.0"
-source = "git+https://github.com/GabrielMajeri/com-impl-rs#6a945fa82c92ab5b04f4fa706fcc74941fc0dda7"
+source = "git+https://github.com/GabrielMajeri/com-impl-rs#59fbbf97b4a3129494e458321bc5a51931892d56"
 dependencies = [
  "heck 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "proc-macro2 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",

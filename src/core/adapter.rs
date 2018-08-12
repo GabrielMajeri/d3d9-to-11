@@ -197,18 +197,21 @@ impl Adapter {
         let check_usage = |d3d9_usage, uf| ((usage & d3d9_usage) != 0) && ((support & uf) == 0);
 
         // First we have to check the resource type.
-        check_rt(D3DRTYPE_SURFACE, D3D11_FORMAT_SUPPORT_TEXTURE2D) ||
-        check_rt(D3DRTYPE_VOLUME, D3D11_FORMAT_SUPPORT_TEXTURE3D) ||
-        check_rt(D3DRTYPE_TEXTURE, D3D11_FORMAT_SUPPORT_TEXTURE2D) ||
-        check_rt(D3DRTYPE_VOLUMETEXTURE, D3D11_FORMAT_SUPPORT_TEXTURE3D) ||
-        check_rt(D3DRTYPE_CUBETEXTURE, D3D11_FORMAT_SUPPORT_TEXTURECUBE) ||
-        check_rt(D3DRTYPE_VERTEXBUFFER, D3D11_FORMAT_SUPPORT_IA_VERTEX_BUFFER) ||
-        check_rt(D3DRTYPE_INDEXBUFFER, D3D11_FORMAT_SUPPORT_IA_INDEX_BUFFER) ||
+        let lacks_support = check_rt(D3DRTYPE_SURFACE, D3D11_FORMAT_SUPPORT_TEXTURE2D) ||
+            check_rt(D3DRTYPE_VOLUME, D3D11_FORMAT_SUPPORT_TEXTURE3D) ||
+            check_rt(D3DRTYPE_TEXTURE, D3D11_FORMAT_SUPPORT_TEXTURE2D) ||
+            check_rt(D3DRTYPE_VOLUMETEXTURE, D3D11_FORMAT_SUPPORT_TEXTURE3D) ||
+            check_rt(D3DRTYPE_CUBETEXTURE, D3D11_FORMAT_SUPPORT_TEXTURECUBE) ||
+            check_rt(D3DRTYPE_VERTEXBUFFER, D3D11_FORMAT_SUPPORT_IA_VERTEX_BUFFER) ||
+            check_rt(D3DRTYPE_INDEXBUFFER, D3D11_FORMAT_SUPPORT_IA_INDEX_BUFFER) ||
 
-        // Now we also need to check the proper usage.
-        check_usage(D3DUSAGE_AUTOGENMIPMAP, D3D11_FORMAT_SUPPORT_MIP_AUTOGEN) ||
-        check_usage(D3DUSAGE_RENDERTARGET, D3D11_FORMAT_SUPPORT_RENDER_TARGET) ||
-        check_usage(D3DUSAGE_DEPTHSTENCIL, D3D11_FORMAT_SUPPORT_DEPTH_STENCIL)
+            // Now we also need to check the proper usage.
+            check_usage(D3DUSAGE_AUTOGENMIPMAP, D3D11_FORMAT_SUPPORT_MIP_AUTOGEN) ||
+            check_usage(D3DUSAGE_RENDERTARGET, D3D11_FORMAT_SUPPORT_RENDER_TARGET) ||
+            check_usage(D3DUSAGE_DEPTHSTENCIL, D3D11_FORMAT_SUPPORT_DEPTH_STENCIL);
+
+        // Due to the way the check functions are written, we need to negate this result.
+        !lacks_support
     }
 
     /// Checks if we support multisampling for a given format.
