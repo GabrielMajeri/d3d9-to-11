@@ -1,0 +1,21 @@
+# Use the latest image available.
+image: Visual Studio 2017
+version: 0.1.{build}
+
+install:
+# Install Rust through rustup
+- cmd: >-
+    appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
+    rustup-init -y --default-toolchain nightly --default-host i686-pc-windows-msvc
+# Check if it works
+- cmd: >-
+    set PATH=%USERPROFILE%/.cargo/bin;%PATH%
+    rustc -vV
+    cargo -vV
+
+build:
+- cmd: cargo build
+
+artifacts:
+- path: target/debug/d3d9.dll
+  name: D3D9
