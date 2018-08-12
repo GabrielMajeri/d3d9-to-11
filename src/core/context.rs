@@ -163,7 +163,7 @@ impl Context {
         let adapter = self.check_adapter(adapter)?;
         self.check_devty(ty)?;
 
-        if adapter.is_format_supported(rt, usage, check_fmt) {
+        if adapter.is_format_supported(check_fmt, rt, usage) {
             Error::Success
         } else {
             Error::NotAvailable
