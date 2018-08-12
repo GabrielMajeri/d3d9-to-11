@@ -18,5 +18,8 @@ pub use self::error::{Error, Result};
 
 pub mod core;
 
+mod dev;
+pub use self::dev::Device;
+
 mod entry;
 pub use self::entry::*;

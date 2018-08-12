@@ -2,6 +2,12 @@
 
 The purpose of this file is to give the reader a general idea of how D3D9 concepts are mapped to D3D11.
 
+In order to understand the Direct3D 9 API, [consult the official documentation][d3d9].
+The same applies for [Direct3D 11's documentation][d3d11].
+
+[d3d9]: https://docs.microsoft.com/en-us/windows/desktop/direct3d9/dx9-graphics-programming-guide
+[d3d11]: https://docs.microsoft.com/en-us/windows/desktop/direct3d11/dx-graphics-overviews
+
 ## Core (IDirect3D9)
 
 - This is the first interface an application creates, and it is used to query information

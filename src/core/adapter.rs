@@ -358,6 +358,11 @@ impl Adapter {
             .unwrap_or(ptr::null_mut())
     }
 
+    /// Clones this adapter's D3D11 device.
+    pub fn device(&self) -> ComPtr<ID3D11Device> {
+        self.device.clone()
+    }
+
     /// Retrieves the output's display modes and caches them.
     fn cache_display_modes(&self, fmt: D3DFORMAT) {
         let output = match self.output {

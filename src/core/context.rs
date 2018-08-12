@@ -2,7 +2,7 @@ use std::{mem, ptr};
 
 use comptr::ComPtr;
 use winapi::ctypes::c_void;
-use winapi::shared::d3d9::IDirect3DDevice9;
+use winapi::shared::d3d9::*;
 use winapi::shared::d3d9caps::D3DCAPS9;
 use winapi::shared::d3d9types::*;
 use winapi::shared::dxgi;
@@ -289,18 +289,55 @@ impl Context {
 
     /// Creates a logical device from an adapter.
     fn create_device(
-        &self,
+        &mut self,
         adapter: u32,
         ty: D3DDEVTYPE,
-        _focus: HWND,
-        _flags: u32,
-        _pp: *mut D3DPRESENT_PARAMETERS,
-        _device: *mut *mut IDirect3DDevice9,
+        focus: HWND,
+        flags: u32,
+        pp: *mut D3DPRESENT_PARAMETERS,
+        device: *mut *mut IDirect3DDevice9,
     ) -> Error {
-        let adapter = self.check_adapter(adapter)?;
         self.check_devty(ty)?;
+        let ret = check_mut_ref(device)?;
 
-        unimplemented!()
+        // TODO: support using multiple GPUs
+        if flags & D3DCREATE_ADAPTERGROUP_DEVICE != 0 {
+            warn!("Application requested the creation of a multi-GPU logical device");
+        }
+
+        // The device will need to hold a strong reference back to this interface.
+        let parent = unsafe {
+            let ptr = ComPtr::new(self as *mut _ as *mut IDirect3D9);
+            ptr.AddRef();
+            ptr
+        };
+
+        // Pass on the D3D11 device.
+        // Since ID3D11Device is thread safe, it doesn't matter if the app
+        // create multiple devices from the same adapter.
+        let d3d11_device = self.check_adapter(adapter)?.device();
+
+        // This struct stores the original device creation parameters.
+        let cp = D3DDEVICE_CREATION_PARAMETERS {
+            AdapterOrdinal: adapter,
+            DeviceType: D3DDEVTYPE_HAL,
+            hFocusWindow: focus,
+            BehaviorFlags: flags,
+        };
+
+        // This structure describes some settings for the back buffer(s).
+        // Since we don't support multiple adapters, we only use the first param in the array.
+        let pp = check_mut_ref(pp)?;
+
+        // Create the actual device.
+        let device = crate::Device::new(parent, d3d11_device, cp, pp)?;
+
+        // Now convert it to a raw pointer and return it.
+        let ptr = Box::into_raw(Box::new(device));
+
+        *ret = ptr as *mut IDirect3DDevice9;
+
+        Error::Success
     }
 }
 
