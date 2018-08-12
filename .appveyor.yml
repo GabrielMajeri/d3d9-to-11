@@ -9,6 +9,7 @@ install:
   # Add to path
   - set PATH=%USERPROFILE%/.cargo/bin;%PATH%
   # Ensure we are using the latest version
+  - rustup self update
   - rustup update
   # Print the installed versions
   - rustc -vV
@@ -28,3 +29,4 @@ artifacts:
 cache:
   - target
   - C:\Users\appveyor\.cargo\
+  - C:\Users\appveyor\.rustup\
