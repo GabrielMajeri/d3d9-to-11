@@ -17,6 +17,7 @@ use winapi::{
 use com_impl::{implementation, interface};
 
 use super::*;
+use crate::core::format::D3DFormatExt;
 use crate::{Error, Result};
 
 /// D3D9 interface which stores all application context.
@@ -157,17 +158,27 @@ impl Context {
         Error::Success
     }
 
+    /// Checks if an adapter is hardware accelerated.
     fn check_device_type(
         &self,
-        _adapter: u32,
-        _ty: D3DDEVTYPE,
-        _adapter_fmt: D3DFORMAT,
+        adapter: u32,
+        ty: D3DDEVTYPE,
+        adapter_fmt: D3DFORMAT,
         _bb_fmt: D3DFORMAT,
         _windowed: u32,
     ) -> Error {
-        unimplemented!()
+        self.check_adapter(adapter)?;
+        self.check_devty(ty)?;
+
+        // We support hardware accel with all valid formats.
+        if adapter_fmt.is_display_mode_format() {
+            Error::Success
+        } else {
+            Error::NotAvailable
+        }
     }
 
+    /// Checks if a certain format can be used for something.
     fn check_device_format(
         &self,
         adapter: u32,
@@ -187,6 +198,7 @@ impl Context {
         }
     }
 
+    /// Checks if a format can be used with multisampling.
     fn check_device_multi_sample_type(
         &self,
         adapter: u32,
@@ -216,46 +228,72 @@ impl Context {
         }
     }
 
+    /// Checks if a depth/stencil format can be used with a RT format.
     fn check_depth_stencil_match(
         &self,
-        _adapter: u32,
-        _ty: D3DDEVTYPE,
+        adapter: u32,
+        ty: D3DDEVTYPE,
         _adapter_fmt: D3DFORMAT,
         _rt_fmt: D3DFORMAT,
-        _ds_format: D3DFORMAT,
-    ) {
-        unimplemented!()
+        ds_fmt: D3DFORMAT,
+    ) -> Error {
+        self.check_adapter(adapter)?;
+        self.check_devty(ty)?;
+
+        // We don't check the adapter fmt / render target fmt since on modern GPUs
+        // basically any valid combination of formats is allowed.
+
+        // We only have to check that the format which was passed in
+        // can be used with d/s buffers.
+        if ds_fmt.is_depth_stencil_format() {
+            Error::Success
+        } else {
+            Error::NotAvailable
+        }
     }
 
+    /// Checks if a conversion between two given formats is supported.
     fn check_device_format_conversion(
         &self,
-        _adapter: u32,
-        _ty: D3DDEVTYPE,
+        adapter: u32,
+        ty: D3DDEVTYPE,
         _src_fmt: D3DFORMAT,
         _tgt_fmt: D3DFORMAT,
-    ) {
-        unimplemented!()
+    ) -> Error {
+        self.check_adapter(adapter)?;
+        self.check_devty(ty)?;
+
+        // For most types we can simply convert them to the right format on-the-fly.
+        // TODO: we should at least validate the formats to make sure they are valid for back buffers.
+
+        Error::Success
     }
 
+    /// Returns a structure describing the features and limits of an adapter.
     fn get_device_caps(_adapter: u32, _ty: D3DDEVTYPE, _caps: *mut D3DCAPS9) -> Error {
         unimplemented!()
     }
 
+    /// Retrieves the monitor associated with an adapter.
     fn get_adapter_monitor(&self, adapter: u32) -> HMONITOR {
         self.check_adapter(adapter)
             .map(|adapter| adapter.monitor())
             .unwrap_or(ptr::null_mut())
     }
 
+    /// Creates a logical device from an adapter.
     fn create_device(
         &self,
-        _adapter: u32,
-        _ty: D3DDEVTYPE,
+        adapter: u32,
+        ty: D3DDEVTYPE,
         _focus: HWND,
         _flags: u32,
         _pp: *mut D3DPRESENT_PARAMETERS,
         _device: *mut *mut IDirect3DDevice9,
-    ) {
+    ) -> Error {
+        let adapter = self.check_adapter(adapter)?;
+        self.check_devty(ty)?;
+
         unimplemented!()
     }
 }
