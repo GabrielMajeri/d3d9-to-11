@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem, ptr};
+use std::{collections::HashMap, cell::RefCell, mem, ptr};
 
 use comptr::ComPtr;
 
@@ -21,7 +21,7 @@ pub struct Adapter {
     // Cache the display's properties.
     output_desc: DXGI_OUTPUT_DESC,
     // Caches the supported display modes compatible with a certain format.
-    mode_cache: HashMap<D3DFORMAT, Box<[DXGI_MODE_DESC]>>,
+    mode_cache: RefCell<HashMap<D3DFORMAT, Box<[DXGI_MODE_DESC]>>>,
     // With D3D11, obtaining a device's capabilities or checking for texture format support
     // requires us to create the device first.
     device: ComPtr<ID3D11Device>,
@@ -78,7 +78,7 @@ impl Adapter {
             adapter,
             output,
             output_desc,
-            mode_cache: HashMap::new(),
+            mode_cache: RefCell::new(HashMap::new()),
             device,
         }
     }
@@ -97,7 +97,7 @@ impl Adapter {
         // Internal identifier of the driver.
         let driver = "D3D 9-to-11 Driver";
         unsafe {
-            ptr::copy(
+            ptr::copy_nonoverlapping(
                 driver.as_ptr(),
                 id.Driver.as_mut_ptr() as *mut u8,
                 driver.len(),
@@ -107,8 +107,9 @@ impl Adapter {
         // Human readable device description.
         let dxgi_desc = crate::core::str::wstr_to_string(&desc.Description);
         let description = format!("{} {}", dxgi_desc, "(D3D 9-to-11 Device)");
+
         unsafe {
-            ptr::copy(
+            ptr::copy_nonoverlapping(
                 description.as_ptr(),
                 id.Description.as_mut_ptr() as *mut u8,
                 description.len(),
@@ -118,7 +119,7 @@ impl Adapter {
         // Fake GDI device name
         let device_name = format!("DISPLAY{}", self.index);
         unsafe {
-            ptr::copy(
+            ptr::copy_nonoverlapping(
                 device_name.as_ptr(),
                 id.DeviceName.as_mut_ptr() as *mut u8,
                 device_name.len(),
@@ -145,23 +146,33 @@ impl Adapter {
     }
 
     /// Retrieves the number of display modes which match the requested format.
-    pub fn mode_count(&mut self, fmt: D3DFORMAT) -> u32 {
+    pub fn mode_count(&self, fmt: D3DFORMAT) -> u32 {
+        if !fmt.is_display_mode_format() {
+            return 0;
+        }
+
         // It's likely the app will also call `get_mode` soon after calling this function,
         // so we cache the mode list now.
         self.cache_display_modes(fmt);
 
-        let modes = &self.mode_cache[&fmt];
+        let mode_cache = self.mode_cache.borrow();
+        let modes = &mode_cache[&fmt];
 
         modes.len() as u32
     }
 
     /// Retrieves the display mode of a certain index.
-    pub fn mode(&mut self, fmt: D3DFORMAT, index: u32) -> Option<D3DDISPLAYMODE> {
+    pub fn mode(&self, fmt: D3DFORMAT, index: u32) -> Option<D3DDISPLAYMODE> {
+        if !fmt.is_display_mode_format() {
+            return None;
+        }
+
         // See if we need to update the cache.
         self.cache_display_modes(fmt);
 
         // Cache should contain an empty vector even if a format is not supported.
-        let modes = &self.mode_cache[&fmt];
+        let mode_cache = self.mode_cache.borrow();
+        let modes = &mode_cache[&fmt];
 
         modes.get(index as usize)
             // Fill in the structure if it was found.
@@ -235,10 +246,14 @@ impl Adapter {
     }
 
     /// Retrieves the output's display modes and caches them.
-    fn cache_display_modes(&mut self, fmt: D3DFORMAT) {
-        // Nothing to do if already in cache.
-        if self.mode_cache.contains_key(&fmt) {
-            return;
+    fn cache_display_modes(&self, fmt: D3DFORMAT) {
+        {
+            let mode_cache = self.mode_cache.borrow();
+
+            // Nothing to do if already in cache.
+            if mode_cache.contains_key(&fmt) {
+                return;
+            }
         }
 
         let format = fmt.to_dxgi();
@@ -266,8 +281,10 @@ impl Adapter {
             mode_descs
         };
 
+        let mut mode_cache = self.mode_cache.borrow_mut();
+
         // Even if the function calls fail, we still store the empty array
         // to determine if they're cached or not.
-        self.mode_cache.insert(fmt, mode_descs);
+        mode_cache.insert(fmt, mode_descs);
     }
 }

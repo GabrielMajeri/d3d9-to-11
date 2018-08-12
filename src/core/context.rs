@@ -15,7 +15,6 @@ use winapi::{
 
 use com_impl::{implementation, interface};
 
-use super::format::D3DFormatExt;
 use super::*;
 use crate::{Error, Result};
 
@@ -105,13 +104,8 @@ impl Context {
     fn get_adapter_mode_count(&mut self, adapter: u32, fmt: D3DFORMAT) -> u32 {
         self.adapters
             .get_mut(adapter as usize)
-            .map(|ad| {
-                if fmt.is_display_mode_format() {
-                    ad.mode_count(fmt)
-                } else {
-                    0
-                }
-            }).unwrap_or_default()
+            .map(|adapter| adapter.mode_count(fmt))
+            .unwrap_or_default()
     }
 
     fn enum_adapter_modes(
@@ -121,19 +115,12 @@ impl Context {
         i: u32,
         mode: *mut D3DDISPLAYMODE,
     ) -> Error {
+        let adapter = self.check_adapter(adapter)?;
         let mode = check_mut_ref(mode)?;
 
-        if !fmt.is_display_mode_format() {
-            Error::NotAvailable
-        } else {
-            *mode = self
-                .adapters
-                .get_mut(adapter as usize)
-                .and_then(|ad| ad.mode(fmt, i))
-                .ok_or(Error::NotAvailable)?;
+        *mode = adapter.mode(fmt, i).ok_or(Error::NotAvailable)?;
 
-            Error::Success
-        }
+        Error::Success
     }
 
     fn get_adapter_display_mode(&self, _adapter: u32, _mode: *mut D3DDISPLAYMODE) -> Error {
