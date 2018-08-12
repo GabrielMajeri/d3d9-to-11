@@ -1,4 +1,4 @@
-use std::ptr;
+use std::{ptr, mem};
 
 use comptr::ComPtr;
 use winapi::ctypes::c_void;
@@ -7,6 +7,7 @@ use winapi::shared::d3d9caps::D3DCAPS9;
 use winapi::shared::d3d9types::*;
 use winapi::shared::dxgi;
 use winapi::shared::windef::{HMONITOR, HWND};
+use winapi::um::winuser;
 use winapi::Interface;
 use winapi::{
     shared::d3d9::{IDirect3D9, IDirect3D9Vtbl},
@@ -73,18 +74,24 @@ impl Context {
 
 #[implementation(IUnknown, IDirect3D9)]
 impl Context {
+    /// Used to register a software rasterizer.
     fn register_software_device(&self, init_fn: *mut c_void) -> Error {
         check_not_null(init_fn)?;
 
         warn!("Application tried to register software device");
 
+        // We don't suppor software rendering, but we report success here since
+        // this call would simply allow software rasterization in cases where
+        // the graphics adapter does not support it.
         Error::Success
     }
 
+    /// Returns the number of GPUs installed on the system.
     fn get_adapter_count(&self) -> u32 {
         self.adapters.len() as u32
     }
 
+    /// Returns a description of a GPU.
     fn get_adapter_identifier(
         &self,
         adapter: u32,
@@ -101,6 +108,7 @@ impl Context {
         Error::Success
     }
 
+    /// Returns the number of display modes with a certain format an adapter supports.
     fn get_adapter_mode_count(&mut self, adapter: u32, fmt: D3DFORMAT) -> u32 {
         self.adapters
             .get_mut(adapter as usize)
@@ -108,6 +116,7 @@ impl Context {
             .unwrap_or_default()
     }
 
+    /// Retrieves the list of display modes.
     fn enum_adapter_modes(
         &mut self,
         adapter: u32,
@@ -123,8 +132,29 @@ impl Context {
         Error::Success
     }
 
-    fn get_adapter_display_mode(&self, _adapter: u32, _mode: *mut D3DDISPLAYMODE) -> Error {
-        unimplemented!()
+    /// Retrieve the current display mode of the GPU.
+    fn get_adapter_display_mode(&self, adapter: u32, mode: *mut D3DDISPLAYMODE) -> Error {
+        let monitor = self.get_adapter_monitor(adapter);
+        let mode = check_mut_ref(mode)?;
+
+        let mi = unsafe {
+            let mut mi: winuser::MONITORINFO = mem::uninitialized();
+            mi.cbSize = mem::size_of_val(&mi) as u32;
+            let result = winuser::GetMonitorInfoW(monitor, &mut mi);
+            assert_eq!(result, 0, "Failed to retrieve monitor info");
+            mi
+        };
+
+        let rc = mi.rcMonitor;
+
+        mode.Width = (rc.right - rc.left) as u32;
+        mode.Height = (rc.bottom - rc.top) as u32;
+        // 0 indicates an adapter-default rate.
+        mode.RefreshRate = 0;
+        // This format is usually what modern displays use internally.
+        mode.Format = D3DFMT_X8R8G8B8;
+
+        Error::Success
     }
 
     fn check_device_type(
