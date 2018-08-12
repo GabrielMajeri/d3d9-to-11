@@ -6,6 +6,7 @@ install:
   # Install Rust through rustup
   - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
   - rustup-init -y --default-toolchain nightly --default-host i686-pc-windows-msvc
+  - rustup update
   # Add to path
   - set PATH=%USERPROFILE%/.cargo/bin;%PATH%
   # Print the installed versions
@@ -22,3 +23,7 @@ test_script:
 artifacts:
 - path: target/debug/d3d9.dll
   name: D3D9
+
+cache:
+  - target
+  - C:\Users\appveyor\.cargo\
