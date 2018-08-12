@@ -17,9 +17,9 @@ pub struct Adapter {
     // DXGI interface representing a physical device.
     adapter: ComPtr<IDXGIAdapter>,
     // The display attached to this device.
-    output: ComPtr<IDXGIOutput>,
+    output: Option<ComPtr<IDXGIOutput>>,
     // Cache the display's properties.
-    output_desc: DXGI_OUTPUT_DESC,
+    output_desc: Option<DXGI_OUTPUT_DESC>,
     // Caches the supported display modes compatible with a certain format.
     mode_cache: RefCell<HashMap<D3DFORMAT, Box<[DXGI_MODE_DESC]>>>,
     // With D3D11, obtaining a device's capabilities or checking for texture format support
@@ -39,16 +39,23 @@ impl Adapter {
         let output = unsafe {
             let mut output = ptr::null_mut();
             let result = adapter.EnumOutputs(0, &mut output);
-            assert_eq!(result, 0, "Failed to retrieve adapter's output");
-            ComPtr::new(output)
+
+            match result {
+                0 => Some(ComPtr::new(output)),
+                _ => {
+                    // Some GPUs might have no outputs attached.
+                    warn!("No outputs detected for adapter {}", index);
+                    None
+                }
+            }
         };
 
-        let output_desc = unsafe {
+        let output_desc = output.as_ref().map(|output| unsafe {
             let mut desc = mem::uninitialized();
             let result = output.GetDesc(&mut desc);
             assert_eq!(result, 0);
             desc
-        };
+        });
 
         // We need to also create the D3D11 device now.;
         let mut _feature_level = 0;
@@ -147,7 +154,7 @@ impl Adapter {
 
     /// Retrieves the number of display modes which match the requested format.
     pub fn mode_count(&self, fmt: D3DFORMAT) -> u32 {
-        if !fmt.is_display_mode_format() {
+        if self.output.is_none() || !fmt.is_display_mode_format() {
             return 0;
         }
 
@@ -163,7 +170,7 @@ impl Adapter {
 
     /// Retrieves the display mode of a certain index.
     pub fn mode(&self, fmt: D3DFORMAT, index: u32) -> Option<D3DDISPLAYMODE> {
-        if !fmt.is_display_mode_format() {
+        if self.output.is_none() || !fmt.is_display_mode_format() {
             return None;
         }
 
@@ -242,11 +249,17 @@ impl Adapter {
 
     /// Returns the (primary) monitor of this adapter.
     pub fn monitor(&self) -> HMONITOR {
-        self.output_desc.Monitor
+        self.output_desc.map(|desc| desc.Monitor)
+            .unwrap_or(ptr::null_mut())
     }
 
     /// Retrieves the output's display modes and caches them.
     fn cache_display_modes(&self, fmt: D3DFORMAT) {
+        let output = match self.output {
+            Some(ref output) => output,
+            None => return,
+        };
+
         {
             let mode_cache = self.mode_cache.borrow();
 
@@ -262,7 +275,7 @@ impl Adapter {
         // Determine how big the list should be.
         let mut num = 0;
         unsafe {
-            self.output
+            output
                 .GetDisplayModeList(format, flags, &mut num, ptr::null_mut());
         }
 
@@ -275,7 +288,7 @@ impl Adapter {
                 v.into_boxed_slice()
             };
 
-            self.output
+            output
                 .GetDisplayModeList(format, flags, &mut num, mode_descs.as_mut_ptr());
 
             mode_descs
