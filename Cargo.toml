@@ -24,4 +24,5 @@ features = [
     "d3d9",
     "dxgi",
     "d3d11",
+    "winuser",
 ]

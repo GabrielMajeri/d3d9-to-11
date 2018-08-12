@@ -1,4 +1,4 @@
-use std::{ptr, mem};
+use std::{mem, ptr};
 
 use comptr::ComPtr;
 use winapi::ctypes::c_void;
@@ -141,7 +141,7 @@ impl Context {
             let mut mi: winuser::MONITORINFO = mem::uninitialized();
             mi.cbSize = mem::size_of_val(&mi) as u32;
             let result = winuser::GetMonitorInfoW(monitor, &mut mi);
-            assert_eq!(result, 0, "Failed to retrieve monitor info");
+            assert_ne!(result, 0, "Failed to retrieve monitor info");
             mi
         };
 
