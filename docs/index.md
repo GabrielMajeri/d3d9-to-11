@@ -12,6 +12,8 @@ The documentation is licensed under the [GNU Free Documentation License](license
 
 - [Alternatives to D3D9-to-11](alternatives.md)
 
+- [Usage](usage.md)
+
 ### For developers
 
 - [Building from source](building.md)
