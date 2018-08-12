@@ -2,3 +2,4 @@
 
 # Directory where Cargo will place the built files.
 /target/
+/Cargo.lock
