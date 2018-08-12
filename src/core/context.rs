@@ -270,8 +270,14 @@ impl Context {
     }
 
     /// Returns a structure describing the features and limits of an adapter.
-    fn get_device_caps(_adapter: u32, _ty: D3DDEVTYPE, _caps: *mut D3DCAPS9) -> Error {
-        unimplemented!()
+    fn get_device_caps(&self, adapter: u32, ty: D3DDEVTYPE, caps: *mut D3DCAPS9) -> Error {
+        let adapter = self.check_adapter(adapter)?;
+        self.check_devty(ty)?;
+        let caps = check_mut_ref(caps)?;
+
+        *caps = adapter.caps();
+
+        Error::Success
     }
 
     /// Retrieves the monitor associated with an adapter.

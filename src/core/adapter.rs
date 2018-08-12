@@ -2,6 +2,7 @@ use std::{cell::RefCell, collections::HashMap, mem, ptr};
 
 use comptr::ComPtr;
 
+use winapi::shared::d3d9caps::*;
 use winapi::shared::d3d9types::*;
 use winapi::shared::dxgi::{IDXGIAdapter, IDXGIOutput, DXGI_OUTPUT_DESC};
 use winapi::shared::dxgitype::DXGI_MODE_DESC;
@@ -25,8 +26,6 @@ pub struct Adapter {
     // With D3D11, obtaining a device's capabilities or checking for texture format support
     // requires us to create the device first.
     device: ComPtr<ID3D11Device>,
-    // The highest-supported feature level of this device.
-    //feature_level: d3dcommon::D3D_FEATURE_LEVEL,
 }
 
 impl Adapter {
@@ -58,7 +57,7 @@ impl Adapter {
         });
 
         // We need to also create the D3D11 device now.;
-        let mut _feature_level = 0;
+        let mut feature_level = 0;
         let device = unsafe {
             let mut device = ptr::null_mut();
             let result = D3D11CreateDevice(
@@ -73,12 +72,16 @@ impl Adapter {
                 0,
                 D3D11_SDK_VERSION,
                 &mut device,
-                &mut _feature_level,
+                &mut feature_level,
                 ptr::null_mut(),
             );
             assert_eq!(result, 0, "Failed to create D3D11 device");
             ComPtr::new(device)
         };
+
+        if feature_level < d3dcommon::D3D_FEATURE_LEVEL_11_0 {
+            warn!("Your GPU doesn't support all of D3D11's features");
+        }
 
         Self {
             index,
@@ -247,9 +250,111 @@ impl Adapter {
         quality
     }
 
+    /// Returns the capabilities of this device.
+    pub fn caps(&self) -> D3DCAPS9 {
+        D3DCAPS9 {
+            DeviceType: D3DDEVTYPE_HAL,
+            AdapterOrdinal: self.index,
+            Caps: 0,
+            // TODO: implement D3DCAPS2_CANSHARERESOURCE for D3D9Ex
+            Caps2: D3DCAPS2_CANAUTOGENMIPMAP
+                | D3DCAPS2_CANCALIBRATEGAMMA
+                | D3DCAPS2_FULLSCREENGAMMA
+                | D3DCAPS2_CANMANAGERESOURCE
+                | D3DCAPS2_DYNAMICTEXTURES,
+            Caps3: D3DCAPS3_ALPHA_FULLSCREEN_FLIP_OR_DISCARD
+                | D3DCAPS3_COPY_TO_VIDMEM
+                | D3DCAPS3_COPY_TO_SYSTEMMEM
+                | D3DCAPS3_LINEAR_TO_SRGB_PRESENTATION,
+            // A lot of these features are bitflags, so we set all bits.
+            PresentationIntervals: !0,
+            CursorCaps: !0,
+            DevCaps: !0,
+            PrimitiveMiscCaps: !0,
+            RasterCaps: !0,
+            ZCmpCaps: !0,
+            SrcBlendCaps: !0,
+            DestBlendCaps: !0,
+            AlphaCmpCaps: !0,
+            ShadeCaps: !0,
+            // This cap indicates lack of support, so we mask it.
+            TextureCaps: !D3DPTEXTURECAPS_NOPROJECTEDBUMPENV,
+            TextureFilterCaps: !0,
+            CubeTextureFilterCaps: !0,
+            VolumeTextureFilterCaps: !0,
+            TextureAddressCaps: !0,
+            VolumeTextureAddressCaps: !0,
+            LineCaps: !0,
+            // The following caps are guaranteed on D3D11 hardware.
+            MaxTextureWidth: 16384,
+            MaxTextureHeight: 16384,
+            MaxVolumeExtent: 2048,
+            MaxTextureRepeat: 8192,
+            MaxTextureAspectRatio: 16384,
+            MaxAnisotropy: 16,
+            // The depth buffer is at most a 32-bit float.
+            MaxVertexW: std::f32::MAX,
+            // Modern GPUs have really big guard bands
+            GuardBandLeft: 0.0,
+            GuardBandTop: 0.0,
+            GuardBandRight: 0.0,
+            GuardBandBottom: 0.0,
+            ExtentsAdjust: 0.0,
+            StencilCaps: !0,
+            FVFCaps: !0,
+            TextureOpCaps: !0,
+            // These are pretty much unlimited on modern hardware.
+            MaxSimultaneousTextures: std::u32::MAX,
+            MaxTextureBlendStages: std::u32::MAX,
+            MaxActiveLights: std::u32::MAX,
+            MaxUserClipPlanes: std::u32::MAX,
+            MaxPrimitiveCount: std::u32::MAX,
+            MaxVertexIndex: std::u32::MAX,
+            MaxVertexBlendMatrices: std::u32::MAX,
+            MaxVertexBlendMatrixIndex: std::u32::MAX,
+            VertexProcessingCaps: !0,
+            MaxPointSize: std::f32::MAX,
+            MaxStreams: 16,
+            MaxStreamStride: 1 << 31,
+            VertexShaderVersion: 0xFFFE_0000 | (3 << 8),
+            MaxVertexShaderConst: 1 << 16,
+            PixelShaderVersion: 0xFFFF_0000 | (3 << 8),
+            PixelShader1xMaxValue: 8.0,
+            DevCaps2: !0,
+            MaxNpatchTessellationLevel: 256.0,
+            Reserved5: 0,
+            // TODO: multihead support
+            MasterAdapterOrdinal: self.index,
+            NumberOfAdaptersInGroup: 1,
+            AdapterOrdinalInGroup: 0,
+            DeclTypes: !0,
+            NumSimultaneousRTs: 8,
+            StretchRectFilterCaps: !0,
+            VS20Caps: D3DVSHADERCAPS2_0 {
+                Caps: !0,
+                DynamicFlowControlDepth: 24,
+                NumTemps: 16384,
+                StaticFlowControlDepth: 1 << 31,
+            },
+            PS20Caps: D3DPSHADERCAPS2_0 {
+                Caps: !0,
+                DynamicFlowControlDepth: 24,
+                NumTemps: !16384,
+                StaticFlowControlDepth: 1 << 31,
+                NumInstructionSlots: 1 << 31,
+            },
+            VertexTextureFilterCaps: !0,
+            MaxVShaderInstructionsExecuted: !0,
+            MaxPShaderInstructionsExecuted: !0,
+            MaxVertexShader30InstructionSlots: 32768,
+            MaxPixelShader30InstructionSlots: 32768,
+        }
+    }
+
     /// Returns the (primary) monitor of this adapter.
     pub fn monitor(&self) -> HMONITOR {
-        self.output_desc.map(|desc| desc.Monitor)
+        self.output_desc
+            .map(|desc| desc.Monitor)
             .unwrap_or(ptr::null_mut())
     }
 
@@ -275,8 +380,7 @@ impl Adapter {
         // Determine how big the list should be.
         let mut num = 0;
         unsafe {
-            output
-                .GetDisplayModeList(format, flags, &mut num, ptr::null_mut());
+            output.GetDisplayModeList(format, flags, &mut num, ptr::null_mut());
         }
 
         let mode_descs = unsafe {
@@ -288,8 +392,7 @@ impl Adapter {
                 v.into_boxed_slice()
             };
 
-            output
-                .GetDisplayModeList(format, flags, &mut num, mode_descs.as_mut_ptr());
+            output.GetDisplayModeList(format, flags, &mut num, mode_descs.as_mut_ptr());
 
             mode_descs
         };
