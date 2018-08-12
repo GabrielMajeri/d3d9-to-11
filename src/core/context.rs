@@ -224,8 +224,10 @@ impl Context {
         unimplemented!()
     }
 
-    fn get_adapter_monitor(&self, _adapter: u32) -> HMONITOR {
-        unimplemented!()
+    fn get_adapter_monitor(&self, adapter: u32) -> HMONITOR {
+        self.check_adapter(adapter)
+            .map(|adapter| adapter.monitor())
+            .unwrap_or(ptr::null_mut())
     }
 
     fn create_device(

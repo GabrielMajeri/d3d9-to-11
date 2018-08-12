@@ -3,8 +3,9 @@ use std::{collections::HashMap, mem, ptr};
 use comptr::ComPtr;
 
 use winapi::shared::d3d9types::*;
-use winapi::shared::dxgi::{IDXGIAdapter, IDXGIOutput};
+use winapi::shared::dxgi::{IDXGIAdapter, IDXGIOutput, DXGI_OUTPUT_DESC};
 use winapi::shared::dxgitype::DXGI_MODE_DESC;
+use winapi::shared::windef::HMONITOR;
 use winapi::um::{d3d11::*, d3dcommon};
 
 use crate::core::format::D3DFormatExt;
@@ -17,6 +18,8 @@ pub struct Adapter {
     adapter: ComPtr<IDXGIAdapter>,
     // The display attached to this device.
     output: ComPtr<IDXGIOutput>,
+    // Cache the display's properties.
+    output_desc: DXGI_OUTPUT_DESC,
     // Caches the supported display modes compatible with a certain format.
     mode_cache: HashMap<D3DFORMAT, Box<[DXGI_MODE_DESC]>>,
     // With D3D11, obtaining a device's capabilities or checking for texture format support
@@ -38,6 +41,13 @@ impl Adapter {
             let result = adapter.EnumOutputs(0, &mut output);
             assert_eq!(result, 0, "Failed to retrieve adapter's output");
             ComPtr::new(output)
+        };
+
+        let output_desc = unsafe {
+            let mut desc = mem::uninitialized();
+            let result = output.GetDesc(&mut desc);
+            assert_eq!(result, 0);
+            desc
         };
 
         // We need to also create the D3D11 device now.;
@@ -67,6 +77,7 @@ impl Adapter {
             index,
             adapter,
             output,
+            output_desc,
             mode_cache: HashMap::new(),
             device,
         }
@@ -213,6 +224,11 @@ impl Adapter {
         }
 
         quality
+    }
+
+    /// Returns the (primary) monitor of this adapter.
+    pub fn monitor(&self) -> HMONITOR {
+        self.output_desc.Monitor
     }
 
     /// Retrieves the output's display modes and caches them.
