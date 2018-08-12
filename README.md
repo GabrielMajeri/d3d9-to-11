@@ -1,6 +1,8 @@
 # Direct3D 9-to-11
 
 [![AppVeyor build status](https://ci.appveyor.com/api/projects/status/30d6a8gwk4w0u4h8?svg=true)](https://ci.appveyor.com/project/GuildMasterInfinite/d3d9-to-11)
+[![Lines of Code](https://tokei.rs/b1/github/GabrielMajeri/d3d9-to-11)](https://github.com/GabrielMajeri/d3d9-to-11)
+[![LGPL-3.0](https://img.shields.io/github/license/GabrielMajeri/d3d9-to-11.svg)](LICENSE)
 
 ## Scope of this project
 
