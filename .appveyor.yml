@@ -13,7 +13,10 @@ install:
   - cargo -vV
 
 build_script:
-- cmd: cargo build
+  - cargo build
+
+test_script:
+  - cargo test --all
 
 # Save the built DLL.
 artifacts:
