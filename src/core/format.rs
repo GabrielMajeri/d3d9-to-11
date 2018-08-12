@@ -18,14 +18,44 @@ pub trait D3DFormatExt {
     /// Note that on modern computers we cannot change the display's format,
     /// this is just for sanity checking.
     fn is_display_mode_format(&self) -> bool;
+
+    /// Checks if a given format is a valid D/S buffer format.
+    fn is_depth_stencil_format(&self) -> bool;
 }
 
 impl D3DFormatExt for D3DFORMAT {
     fn to_dxgi(self) -> DXGI_FORMAT {
+        // Note that a lot of RGB formats get transformed to BGR formats.
+        // Due to GDI's choice BGR, most modern GPUs internally used BGR,
+        // and converted RGB to it, which is why D3D11 uses it by default.
         match self {
-            D3DFMT_UNKNOWN => DXGI_FORMAT_UNKNOWN,
+            // 8 bit formats
+            D3DFMT_R3G3B2 | D3DFMT_A8R3G3B2 => unimplemented!("8 bit color not supported"),
+            D3DFMT_A8 => DXGI_FORMAT_A8_UNORM,
+
+            // 16 bit formats
+            D3DFMT_R5G6B5 => DXGI_FORMAT_B5G6R5_UNORM,
+            D3DFMT_X4R4G4B4 => DXGI_FORMAT_B4G4R4A4_UNORM,
+            D3DFMT_A4R4G4B4 => DXGI_FORMAT_B4G4R4A4_UNORM,
+            D3DFMT_X1R5G5B5 => DXGI_FORMAT_B5G5R5A1_UNORM,
+            D3DFMT_A1R5G5B5 => DXGI_FORMAT_B5G5R5A1_UNORM,
+
+            // 24 bit formats
+            D3DFMT_R8G8B8 => DXGI_FORMAT_B8G8R8X8_UNORM,
+
+            // 32 bit formats
             D3DFMT_X8R8G8B8 => DXGI_FORMAT_B8G8R8X8_UNORM,
+            D3DFMT_A8R8G8B8 => DXGI_FORMAT_B8G8R8A8_UNORM,
+            D3DFMT_A8B8G8R8 => DXGI_FORMAT_B8G8R8A8_UNORM,
+            D3DFMT_X8B8G8R8 => DXGI_FORMAT_B8G8R8X8_UNORM,
+            D3DFMT_G16R16 => DXGI_FORMAT_R16G16_UNORM,
+
+            // HDR formats
+            D3DFMT_A2R10G10B10 | D3DFMT_A2B10G10R10 => DXGI_FORMAT_R10G10B10A2_UNORM,
             D3DFMT_A16B16G16R16F => DXGI_FORMAT_R16G16B16A16_FLOAT,
+
+            // Unknown formats
+            D3DFMT_UNKNOWN => DXGI_FORMAT_UNKNOWN,
             _ => panic!("Unknown D3D9 format: {}", self),
         }
     }
@@ -37,6 +67,15 @@ impl D3DFormatExt for D3DFORMAT {
             // This format is also supported.
             // It seems it's meant to be used with HDR displays.
             D3DFMT_A2R10G10B10 => true,
+            _ => false,
+        }
+    }
+
+    fn is_depth_stencil_format(&self) -> bool {
+        match *self {
+            // TODO: there are also some unused formats in this range.
+            // Need to check all formats in this range to be valid.
+            D3DFMT_D16_LOCKABLE..=D3DFMT_S8_LOCKABLE => true,
             _ => false,
         }
     }
