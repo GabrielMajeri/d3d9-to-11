@@ -3,9 +3,11 @@ use std::{cmp, mem, ptr};
 use winapi::{
     shared::{d3d9::*, d3d9types::*, dxgi::*, dxgitype::*, windef::HWND, winerror},
     um::{
+        d3d11::ID3D11Texture2D,
         unknwnbase::{IUnknown, IUnknownVtbl},
         winuser,
     },
+    Interface,
 };
 
 use com_impl::{implementation, interface};
@@ -15,6 +17,8 @@ use crate::{
     core::{format::D3DFormatExt, *},
     Error, Result,
 };
+
+use super::Surface;
 
 /// Represents a swap chain, which is a queue of buffers
 /// on which the app can draw.
@@ -41,7 +45,7 @@ impl SwapChain {
     pub fn new(
         parent: ComPtr<IDirect3DDevice9>,
         device: &mut IUnknown,
-        factory: &mut IDXGIFactory,
+        factory: &IDXGIFactory,
         pp: &mut D3DPRESENT_PARAMETERS,
         window: HWND,
     ) -> Result<ComPtr<IDirect3DSwapChain9>> {
@@ -252,18 +256,43 @@ impl SwapChain {
 
     /// Retrieves the the back buffer's surface.
     fn get_back_buffer(
-        _idx: u32,
+        &self,
+        idx: u32,
         ty: D3DBACKBUFFER_TYPE,
-        _surf: *mut *mut IDirect3DSurface9,
+        surf: *mut *mut IDirect3DSurface9,
     ) -> Error {
+        let surf = check_mut_ref(surf)?;
+
+        // Buffer indices start from 0.
+        if idx >= self.pp.BackBufferCount {
+            return Error::InvalidCall;
+        }
+
         // The docs specify that mono is the only valid type.
         if ty != D3DBACKBUFFER_TYPE_MONO {
             return Error::InvalidCall;
         }
 
-        // TODO: use swap_chain->GetBuffer(idx, &texture) and then build a new surface.
+        // Retrieve the 2D texture representing this back buffer.
+        let buffer = unsafe {
+            let mut ptr: *mut ID3D11Texture2D = ptr::null_mut();
+            let uuid = ID3D11Texture2D::uuidof();
 
-        unimplemented!()
+            let result = self.swap_chain.GetBuffer(
+                idx,
+                &uuid,
+                &mut ptr as *mut *mut ID3D11Texture2D as *mut _,
+            );
+
+            check_hresult!(result, "Failed to retrieve swap chain buffer");
+
+            ComPtr::new(ptr)
+        };
+
+        // Create and return a pointer to the surface.
+        *surf = Surface::from_texture(self.parent.clone(), buffer, 0).into();
+
+        Error::Success
     }
 
     /// Gets the status of the current scanline the rasterizer is processing.

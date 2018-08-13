@@ -2,7 +2,7 @@ use std::ptr;
 
 use winapi::{
     shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::HWND},
-    um::d3d11::ID3D11Device,
+    um::d3d11::{ID3D11Device, ID3D11DeviceContext},
     um::unknwnbase::{IUnknown, IUnknownVtbl},
 };
 
@@ -27,6 +27,8 @@ pub struct Device {
     adapter: &'static Adapter,
     // The equivalent interface from D3D11.
     device: ComPtr<ID3D11Device>,
+    // The context in which commands are run.
+    device_ctx: ComPtr<ID3D11DeviceContext>,
     // Store the creation params, since the app might request them later.
     creation_params: D3DDEVICE_CREATION_PARAMETERS,
     // The DXGI factory which was used to create this device.
@@ -53,6 +55,11 @@ impl Device {
         let adapter = unsafe { &*(adapter as *const Adapter) };
 
         let device = adapter.device();
+        let device_ctx = unsafe {
+            let mut ptr = ptr::null_mut();
+            device.GetImmediateContext(&mut ptr);
+            ComPtr::new(ptr)
+        };
 
         // Determine which window to render to.
         // TODO: track the focus window and use it to disable rendering
@@ -72,6 +79,7 @@ impl Device {
             parent,
             adapter,
             device,
+            device_ctx,
             creation_params: cp,
             factory,
             window,
@@ -87,6 +95,11 @@ impl Device {
         }
 
         Ok(unsafe { new_com_interface(device) })
+    }
+
+    /// Retrieves a reference to the immediate device context.
+    pub fn device_context(&self) -> &ID3D11DeviceContext {
+        self.device_ctx.get_mut()
     }
 
     /// Creates the default swap chain for this device.

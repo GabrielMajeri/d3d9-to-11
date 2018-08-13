@@ -6,3 +6,9 @@ pub use self::device::Device;
 
 mod swapchain;
 pub use self::swapchain::SwapChain;
+
+mod resource;
+pub use self::resource::Resource;
+
+mod surface;
+pub use self::surface::Surface;
