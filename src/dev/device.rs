@@ -1,5 +1,5 @@
 use winapi::{
-    shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*},
+    shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory},
     um::d3d11::ID3D11Device,
     um::unknwnbase::{IUnknown, IUnknownVtbl},
 };
@@ -7,6 +7,7 @@ use winapi::{
 use com_impl::{implementation, interface};
 use comptr::ComPtr;
 
+use super::SwapChain;
 use crate::core::*;
 use crate::{Error, Result};
 
@@ -26,6 +27,12 @@ pub struct Device {
     device: ComPtr<ID3D11Device>,
     // Store the creation params, since the app might request them later.
     creation_params: D3DDEVICE_CREATION_PARAMETERS,
+    // The DXGI factory which was used to create this device.
+    // Required when creating new swap chains.
+    factory: ComPtr<IDXGIFactory>,
+    // The swap chain for the back buffer.
+    // TODO: support multiple swap chains.
+    swap_chain: SwapChain,
 }
 
 impl Device {
@@ -34,13 +41,34 @@ impl Device {
         parent: ComPtr<IDirect3D9>,
         adapter: &Adapter,
         cp: D3DDEVICE_CREATION_PARAMETERS,
-        _pp: &mut D3DPRESENT_PARAMETERS,
+        pp: &mut D3DPRESENT_PARAMETERS,
+        factory: ComPtr<IDXGIFactory>,
     ) -> Result<Self> {
         // Need to work around the lifetime system,
         // Rust cannot know we share ownership of the device.
         let adapter = unsafe { &*(adapter as *const Adapter) };
 
         let device = adapter.device();
+
+        // Determine which window to render to.
+        // TODO: track the focus window and use it to disable rendering
+        // when the app loses focus. It is currently ignored.
+        let window = unsafe {
+            // We're supposed to use the device window if available, or
+            // fall back to the focus window otherwise.
+            pp.hDeviceWindow
+                .as_mut()
+                .or_else(|| cp.hFocusWindow.as_mut())
+                .ok_or(Error::InvalidCall)?
+        };
+
+        // Create the swap chain for the default render target.
+        let swap_chain = SwapChain::new(pp, window, factory.get_mut(), device.upcast().get_mut())?;
+
+        // TODO: D/S buffer creation
+        if pp.EnableAutoDepthStencil != 0 {
+            error!("Automatic depth / stencil creation not yet supported");
+        }
 
         let device = Self {
             __vtable: Self::create_vtable(),
@@ -49,6 +77,8 @@ impl Device {
             adapter,
             device,
             creation_params: cp,
+            factory,
+            swap_chain,
         };
 
         Ok(device)

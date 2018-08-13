@@ -325,7 +325,13 @@ impl Context {
         let pp = check_mut_ref(pp)?;
 
         // Create the actual device.
-        let device = crate::Device::new(parent, self.check_adapter(adapter)?, cp, pp)?;
+        let device = crate::Device::new(
+            parent,
+            self.check_adapter(adapter)?,
+            cp,
+            pp,
+            self.factory.clone(),
+        )?;
 
         // Now convert it to a raw pointer and return it.
         let ptr = Box::into_raw(Box::new(device));

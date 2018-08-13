@@ -15,8 +15,6 @@ use crate::core::format::D3DFormatExt;
 pub struct Adapter {
     // Ordinal of this adapter in the list of GPUs.
     index: u32,
-    // DXGI interface representing a physical device.
-    adapter: ComPtr<IDXGIAdapter>,
     // Caches this adapter's description.
     adapter_desc: DXGI_ADAPTER_DESC,
     // The display attached to this device.
@@ -33,6 +31,7 @@ pub struct Adapter {
 impl Adapter {
     /// Creates a new adapter.
     pub fn new(index: u32, adapter: *mut IDXGIAdapter) -> Self {
+        // DXGI interface representing a physical device.
         let adapter = ComPtr::new(adapter);
 
         let adapter_desc = unsafe {
@@ -94,7 +93,6 @@ impl Adapter {
 
         Self {
             index,
-            adapter,
             adapter_desc,
             output,
             output_desc,

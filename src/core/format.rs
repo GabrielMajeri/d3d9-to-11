@@ -75,7 +75,6 @@ impl D3DFormatExt for D3DFORMAT {
             D3DFMT_G32R32F => DXGI_FORMAT_R32G32_FLOAT,
             D3DFMT_A32B32G32R32F => DXGI_FORMAT_R32G32B32A32_FLOAT,
 
-
             // Unknown formats
             D3DFMT_UNKNOWN => DXGI_FORMAT_UNKNOWN,
             _ => panic!("Unknown D3D9 format: {}", self),

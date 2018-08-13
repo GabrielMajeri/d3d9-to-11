@@ -3,3 +3,6 @@
 
 mod device;
 pub use self::device::Device;
+
+mod swapchain;
+pub use self::swapchain::SwapChain;
