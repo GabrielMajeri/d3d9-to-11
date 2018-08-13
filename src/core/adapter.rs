@@ -9,7 +9,7 @@ use winapi::shared::dxgitype::DXGI_MODE_DESC;
 use winapi::shared::windef::HMONITOR;
 use winapi::um::{d3d11::*, d3dcommon};
 
-use crate::core::format::D3DFormatExt;
+use crate::{core::format::D3DFormatExt, Error, Result};
 
 /// This class represents a physical graphics adapter (GPU).
 pub struct Adapter {
@@ -30,14 +30,16 @@ pub struct Adapter {
 
 impl Adapter {
     /// Creates a new adapter.
-    pub fn new(index: u32, adapter: *mut IDXGIAdapter) -> Self {
+    pub fn new(index: u32, adapter: *mut IDXGIAdapter) -> Result<Self> {
         // DXGI interface representing a physical device.
         let adapter = ComPtr::new(adapter);
 
         let adapter_desc = unsafe {
             let mut desc = mem::uninitialized();
             let result = adapter.GetDesc(&mut desc);
-            assert_eq!(result, 0, "Failed to get adapter description");
+
+            check_hresult!(result, "Failed to get adapter description");
+
             desc
         };
 
@@ -57,12 +59,17 @@ impl Adapter {
             }
         };
 
-        let output_desc = output.as_ref().map(|output| unsafe {
-            let mut desc = mem::uninitialized();
-            let result = output.GetDesc(&mut desc);
-            assert_eq!(result, 0);
-            desc
-        });
+        let output_desc = output
+            .as_ref()
+            .ok_or(Error::NotFound)
+            .and_then(|output| unsafe {
+                let mut desc = mem::uninitialized();
+                let result = output.GetDesc(&mut desc);
+
+                check_hresult!(result, "Failed to get output description");
+
+                Ok(desc)
+            }).ok();
 
         // We need to also create the D3D11 device now.;
         let mut feature_level = 0;
@@ -83,7 +90,9 @@ impl Adapter {
                 &mut feature_level,
                 ptr::null_mut(),
             );
-            assert_eq!(result, 0, "Failed to create D3D11 device");
+
+            check_hresult!(result, "Failed to create D3D11 device");
+
             ComPtr::new(device)
         };
 
@@ -91,14 +100,16 @@ impl Adapter {
             warn!("Your GPU doesn't support all of D3D11's features");
         }
 
-        Self {
+        let adapter = Self {
             index,
             adapter_desc,
             output,
             output_desc,
             mode_cache: RefCell::new(HashMap::new()),
             device,
-        }
+        };
+
+        Ok(adapter)
     }
 
     /// Retrieves a description of this adapter.

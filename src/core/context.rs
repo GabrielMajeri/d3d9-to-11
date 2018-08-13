@@ -32,7 +32,7 @@ pub struct Context {
 
 impl Context {
     /// Creates a new D3D9 context.
-    pub fn new() -> ComPtr<IDirect3D9> {
+    pub fn new() -> Result<ComPtr<IDirect3D9>> {
         // We first have to create a factory, which is the equivalent of this interface in DXGI terms.
         let factory = unsafe {
             let uuid = dxgi::IDXGIFactory::uuidof();
@@ -49,7 +49,7 @@ impl Context {
             .scan(ptr::null_mut(), |adapter, id| unsafe {
                 let result = factory.EnumAdapters(id, adapter);
                 if result == 0 {
-                    Some(Adapter::new(id, *adapter))
+                    Adapter::new(id, *adapter).ok()
                 } else {
                     None
                 }
@@ -63,7 +63,7 @@ impl Context {
             adapters,
         };
 
-        unsafe { new_com_interface(ctx) }
+        Ok(unsafe { new_com_interface(ctx) })
     }
 
     fn check_adapter(&self, adapter: u32) -> Result<&Adapter> {
