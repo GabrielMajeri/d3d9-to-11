@@ -1,13 +1,19 @@
 use std::{cmp, mem, ptr};
 
 use winapi::{
-    shared::d3d9types::*, shared::dxgi::*, shared::dxgitype::*, shared::windef::HWND,
-    um::unknwnbase::IUnknown, um::winuser,
+    shared::d3d9::*,
+    shared::d3d9types::*,
+    shared::dxgi::*,
+    shared::dxgitype::*,
+    shared::windef::HWND,
+    um::unknwnbase::{IUnknown, IUnknownVtbl},
+    um::winuser,
 };
 
+use com_impl::{implementation, interface};
 use comptr::ComPtr;
 
-use crate::{core::format::D3DFormatExt, Error, Result};
+use crate::{core::format::D3DFormatExt, core::new_com_interface, Error, Result};
 
 /// Represents a swap chain, which is a queue of buffers
 /// on which the app can draw.
@@ -15,19 +21,25 @@ use crate::{core::format::D3DFormatExt, Error, Result};
 /// The swap chain handles the presentation of the buffers,
 /// i.e. the way they are sent to the screen, and tries to
 /// avoid tearing or input latency.
+#[interface(IUnknown, IDirect3DSwapChain9)]
 pub struct SwapChain {
+    // Parent device of this interface.
+    parent: ComPtr<IDirect3DDevice9>,
     // The equivalent DXGI interface.
     swap_chain: ComPtr<IDXGISwapChain>,
+    // Store these for retrieving them later.
+    pp: D3DPRESENT_PARAMETERS,
 }
 
 impl SwapChain {
     /// Creates a new swap chain with the given parameters, which presents into a window.
     pub fn new(
+        parent: ComPtr<IDirect3DDevice9>,
+        device: &mut IUnknown,
+        factory: &mut IDXGIFactory,
         pp: &mut D3DPRESENT_PARAMETERS,
         window: HWND,
-        factory: &mut IDXGIFactory,
-        device: &mut IUnknown,
-    ) -> Result<Self> {
+    ) -> Result<ComPtr<IDirect3DSwapChain9>> {
         // First we need to set up the description of this swap chain.
         let mut sc_desc = {
             // Fill in the description of the back buffer.
@@ -158,9 +170,17 @@ impl SwapChain {
             ComPtr::new(ptr)
         };
 
-        let swap_chain = Self { swap_chain };
+        let pp = *pp;
 
-        Ok(swap_chain)
+        let swap_chain = Self {
+            __vtable: Self::create_vtable(),
+            __refs: Self::create_refs(),
+            parent,
+            swap_chain,
+            pp,
+        };
+
+        Ok(unsafe { new_com_interface(swap_chain) })
     }
 }
 
@@ -171,5 +191,36 @@ impl Drop for SwapChain {
             // we need to make it windowed right before destroying it.
             self.swap_chain.SetFullscreenState(0, ptr::null_mut());
         }
+    }
+}
+
+#[implementation(IUnknown, IDirect3DSwapChain9)]
+impl SwapChain {
+    fn present() {
+        unimplemented!()
+    }
+
+    fn get_front_buffer_data() {
+        unimplemented!()
+    }
+
+    fn get_back_buffer() {
+        unimplemented!()
+    }
+
+    fn get_raster_status() {
+        unimplemented!()
+    }
+
+    fn get_display_mode() {
+        unimplemented!()
+    }
+
+    fn get_device() {
+        unimplemented!()
+    }
+
+    fn get_present_parameters() {
+        unimplemented!()
     }
 }

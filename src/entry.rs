@@ -20,11 +20,7 @@ pub unsafe extern "system" fn Direct3DCreate9(sdk_version: u32) -> *mut IDirect3
         _ => warn!("Unknown D3D9 SDK version {}", sdk_version),
     }
 
-    let ctx = Context::new();
-
-    let ptr = Box::into_raw(Box::new(ctx));
-
-    ptr as *mut IDirect3D9
+    Context::new().into()
 }
 
 #[no_mangle]

@@ -32,7 +32,7 @@ pub struct Context {
 
 impl Context {
     /// Creates a new D3D9 context.
-    pub fn new() -> Self {
+    pub fn new() -> ComPtr<IDirect3D9> {
         // We first have to create a factory, which is the equivalent of this interface in DXGI terms.
         let factory = unsafe {
             let uuid = dxgi::IDXGIFactory::uuidof();
@@ -45,18 +45,25 @@ impl Context {
         };
 
         // Now we can enumerate all the graphics adapters on the system.
-        let mut adapter = ptr::null_mut();
-        let adapters: Vec<_> = (0..)
-            .take_while(|&id| unsafe { factory.EnumAdapters(id, &mut adapter) == 0 })
-            .map(|id| Adapter::new(id, adapter))
+        let adapters = (0..)
+            .scan(ptr::null_mut(), |adapter, id| unsafe {
+                let result = factory.EnumAdapters(id, adapter);
+                if result == 0 {
+                    Some(Adapter::new(id, *adapter))
+                } else {
+                    None
+                }
+            }).fuse()
             .collect();
 
-        Self {
+        let ctx = Self {
             __vtable: Self::create_vtable(),
             __refs: Self::create_refs(),
             factory,
             adapters,
-        }
+        };
+
+        unsafe { new_com_interface(ctx) }
     }
 
     fn check_adapter(&self, adapter: u32) -> Result<&Adapter> {
@@ -306,11 +313,7 @@ impl Context {
         }
 
         // The device will need to hold a strong reference back to this interface.
-        let parent = unsafe {
-            let ptr = ComPtr::new(self as *mut _ as *mut IDirect3D9);
-            ptr.AddRef();
-            ptr
-        };
+        let parent = self_ref(self);
 
         // This struct stores the original device creation parameters.
         let cp = D3DDEVICE_CREATION_PARAMETERS {
@@ -325,18 +328,13 @@ impl Context {
         let pp = check_mut_ref(pp)?;
 
         // Create the actual device.
-        let device = crate::Device::new(
+        *ret = crate::Device::new(
             parent,
             self.check_adapter(adapter)?,
             cp,
             pp,
             self.factory.clone(),
-        )?;
-
-        // Now convert it to a raw pointer and return it.
-        let ptr = Box::into_raw(Box::new(device));
-
-        *ret = ptr as *mut IDirect3DDevice9;
+        )?.into();
 
         Error::Success
     }
@@ -347,14 +345,9 @@ mod tests {
     use super::*;
     use std::mem;
 
-    fn new_context() -> ComPtr<IDirect3D9> {
-        let ptr = Box::into_raw(Box::new(Context::new()));
-        ComPtr::new(ptr as *mut IDirect3D9)
-    }
-
     #[test]
     fn context_lifetime() {
-        let ctx = new_context();
+        let ctx = Context::new().expect("Failed to create device");
 
         let original_count = unsafe { ctx.GetAdapterCount() };
         assert!(original_count > 0, "No GPUs found on the system.");

@@ -1,5 +1,7 @@
+use std::ptr;
+
 use winapi::{
-    shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory},
+    shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::HWND},
     um::d3d11::ID3D11Device,
     um::unknwnbase::{IUnknown, IUnknownVtbl},
 };
@@ -30,9 +32,11 @@ pub struct Device {
     // The DXGI factory which was used to create this device.
     // Required when creating new swap chains.
     factory: ComPtr<IDXGIFactory>,
-    // The swap chain for the back buffer.
-    // TODO: support multiple swap chains.
-    swap_chain: SwapChain,
+    // The window associated with this device.
+    window: HWND,
+    // The implicit swap chain for the back buffer.
+    // There is one for each device in an adapter group.
+    swap_chains: Vec<ComPtr<IDirect3DSwapChain9>>,
 }
 
 impl Device {
@@ -43,7 +47,7 @@ impl Device {
         cp: D3DDEVICE_CREATION_PARAMETERS,
         pp: &mut D3DPRESENT_PARAMETERS,
         factory: ComPtr<IDXGIFactory>,
-    ) -> Result<Self> {
+    ) -> Result<ComPtr<IDirect3DDevice9>> {
         // Need to work around the lifetime system,
         // Rust cannot know we share ownership of the device.
         let adapter = unsafe { &*(adapter as *const Adapter) };
@@ -62,15 +66,7 @@ impl Device {
                 .ok_or(Error::InvalidCall)?
         };
 
-        // Create the swap chain for the default render target.
-        let swap_chain = SwapChain::new(pp, window, factory.get_mut(), device.upcast().get_mut())?;
-
-        // TODO: D/S buffer creation
-        if pp.EnableAutoDepthStencil != 0 {
-            error!("Automatic depth / stencil creation not yet supported");
-        }
-
-        let device = Self {
+        let mut device = Self {
             __vtable: Self::create_vtable(),
             __refs: Self::create_refs(),
             parent,
@@ -78,10 +74,50 @@ impl Device {
             device,
             creation_params: cp,
             factory,
-            swap_chain,
+            window,
+            swap_chains: Vec::new(),
         };
 
-        Ok(device)
+        // Create the swap chain for the default render target.
+        device.create_default_swap_chain(pp)?;
+
+        // TODO: D/S buffer creation
+        if pp.EnableAutoDepthStencil != 0 {
+            error!("Automatic depth / stencil creation not yet supported");
+        }
+
+        Ok(unsafe { new_com_interface(device) })
+    }
+
+    /// Creates the default swap chain for this device.
+    fn create_default_swap_chain(&mut self, pp: &mut D3DPRESENT_PARAMETERS) -> Result<()> {
+        // Note: this function is usually used for non-implicit swap chains,
+        // but it's a good idea to reuse it.
+        let swap_chain = {
+            let mut ret = ptr::null_mut();
+            self.create_additional_swap_chain(pp, &mut ret)?;
+            ComPtr::new(ret)
+        };
+
+        // Now put it in the list of implicit swap chains, which should be empty.
+        let scs = &mut self.swap_chains;
+
+        assert!(
+            scs.is_empty(),
+            "Cannot create default swap chain if it already exists"
+        );
+
+        scs.push(swap_chain);
+
+        Ok(())
+    }
+
+    /// Tries to retrieve a swap chain based on the index.
+    fn check_swap_chain(&self, sc: u32) -> Result<ComPtr<IDirect3DSwapChain9>> {
+        self.swap_chains
+            .get(sc as usize)
+            .ok_or(Error::InvalidCall)
+            .map(|sc| sc.clone())
     }
 }
 
@@ -133,6 +169,43 @@ impl Device {
         Error::Success
     }
 
+    // -- Swap chain functions --
+
+    /// Creates new swap chains for this device.
+    fn create_additional_swap_chain(
+        &mut self,
+        pp: *mut D3DPRESENT_PARAMETERS,
+        ret: *mut *mut IDirect3DSwapChain9,
+    ) -> Error {
+        let parent = self_ref(self);
+        let device = self.device.upcast().get_mut();
+        let factory = self.factory.get_mut();
+        let pp = check_mut_ref(pp)?;
+        let window = self.window;
+
+        let ret = check_mut_ref(ret)?;
+
+        *ret = SwapChain::new(parent, device, factory, pp, window)?.into();
+
+        Error::Success
+    }
+
+    /// Returns an implicit swap chain.
+    fn get_swap_chain(&self, sc: u32, ret: *mut *mut IDirect3DSwapChain9) -> Error {
+        let sc = self.check_swap_chain(sc)?;
+        let ret = check_mut_ref(ret)?;
+
+        *ret = sc.into();
+
+        Error::Success
+    }
+
+    /// Returns the number of implicit swap chains.
+    fn get_number_of_swap_chains(&self) -> u32 {
+        // TODO: to have more than one implicit SC, we need multi-GPU support.
+        1
+    }
+
     // Function stubs:
     // these are functions which are defined, but not yet implemented.
 
@@ -146,9 +219,6 @@ impl Device {
         unimplemented!()
     }
     fn color_fill() {
-        unimplemented!()
-    }
-    fn create_additional_swap_chain() {
         unimplemented!()
     }
     fn create_cube_texture() {
@@ -259,9 +329,6 @@ impl Device {
     fn get_n_patch_mode() {
         unimplemented!()
     }
-    fn get_number_of_swap_chains() {
-        unimplemented!()
-    }
     fn get_palette_entries() {
         unimplemented!()
     }
@@ -302,9 +369,6 @@ impl Device {
         unimplemented!()
     }
     fn get_stream_source_freq() {
-        unimplemented!()
-    }
-    fn get_swap_chain() {
         unimplemented!()
     }
     fn get_texture() {
