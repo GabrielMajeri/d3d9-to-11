@@ -28,7 +28,7 @@ Building the project is very simple. Cargo, Rust's package manager, will downloa
 Simply run:
 
 ```sh
-cargo build --target i686-pc-windows-gnu
+cargo build
 ```
 
 And you're done. You can optionally append the `--release` flag to build an optimized release build.
