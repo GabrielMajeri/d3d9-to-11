@@ -15,11 +15,21 @@ Furthermore, most (old) games lack multithreading support, draining the CPU reso
 
 This project uplifts the games D3D9 graphics API calls to D3D11.
 
-**Important**: this project ought be used together with [DXVK](https://github.com/doitsujin/dxvk/), which would then translate D3D11 to Vulkan.
+**Note**: **the project is currently under heavy development. Currently, it is _not_ capable of running _real games_**. You are welcome to build and test it yourself if you want to.
+
+**Important**: this project **should be used together with [DXVK](https://github.com/doitsujin/dxvk/)**, which would then translate D3D11 to Vulkan.
+**Without DXVK, this project will probably not provide any performance improvement, more likely will degrade performance.**
 
 ## Documentation
 
-All of the project's documentation is stored in the [docs](docs/index.md) directory and is checked into the repository.
+[**Read the documentation online on GitHub Pages!**](https://gabrielmajeri.github.io/d3d9-to-11/)
+
+All of the project's documentation is stored in the [docs](docs/index.md) directory
+and is checked into the repository.
+
+We don't use GitHub's wiki pages, because it is hard to contribute and review changes to the wiki documentation.
+It is better to use pull requests for documentation changes.
+
 Everyone is welcome to contribute to the docs. The docs are licensed under the [GNU Free Documentation License](docs/license.md).
 
 ## Building
