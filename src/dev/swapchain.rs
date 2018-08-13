@@ -1,19 +1,20 @@
 use std::{cmp, mem, ptr};
 
 use winapi::{
-    shared::d3d9::*,
-    shared::d3d9types::*,
-    shared::dxgi::*,
-    shared::dxgitype::*,
-    shared::windef::HWND,
-    um::unknwnbase::{IUnknown, IUnknownVtbl},
-    um::winuser,
+    shared::{d3d9::*, d3d9types::*, dxgi::*, dxgitype::*, windef::HWND, winerror},
+    um::{
+        unknwnbase::{IUnknown, IUnknownVtbl},
+        winuser,
+    },
 };
 
 use com_impl::{implementation, interface};
 use comptr::ComPtr;
 
-use crate::{core::format::D3DFormatExt, core::new_com_interface, Error, Result};
+use crate::{
+    core::{format::D3DFormatExt, *},
+    Error, Result,
+};
 
 /// Represents a swap chain, which is a queue of buffers
 /// on which the app can draw.
@@ -29,6 +30,10 @@ pub struct SwapChain {
     swap_chain: ComPtr<IDXGISwapChain>,
     // Store these for retrieving them later.
     pp: D3DPRESENT_PARAMETERS,
+    // Determines how many vblanks to wait before presenting:
+    // 0 -> no vsync
+    // 1 through 4 -> vsync, with `refresh rate = (monitor Hz / sync_interval)`.
+    sync_interval: u32,
 }
 
 impl SwapChain {
@@ -142,8 +147,6 @@ impl SwapChain {
                 warn!("Unsupported presentation flags: {}", pp.Flags);
             }
 
-            // TODO: store the pp.PresentationInterval and use it when calling DXGI's Present.
-
             DXGI_SWAP_CHAIN_DESC {
                 BufferDesc: buffer_desc,
                 SampleDesc: sample_desc,
@@ -172,12 +175,16 @@ impl SwapChain {
 
         let pp = *pp;
 
+        // Clamp this to 4.
+        let sync_interval = cmp::min(pp.PresentationInterval, 4);
+
         let swap_chain = Self {
             __vtable: Self::create_vtable(),
             __refs: Self::create_refs(),
             parent,
             swap_chain,
             pp,
+            sync_interval,
         };
 
         Ok(unsafe { new_com_interface(swap_chain) })
@@ -196,31 +203,103 @@ impl Drop for SwapChain {
 
 #[implementation(IUnknown, IDirect3DSwapChain9)]
 impl SwapChain {
-    fn present() {
+    /// Presents the back buffer to the screen, and moves to the next buffer in the chain.
+    fn present(&self, src: usize, dest: usize, wnd: HWND, dirty: usize, flags: u32) -> Error {
+        if src != 0 || dest != 0 || dirty != 0 {
+            // Check if the app is even allowed to partially present.
+            if self.pp.SwapEffect != D3DSWAPEFFECT_COPY {
+                return Error::InvalidCall;
+            }
+
+            unimplemented!("Partial present is not yet supported");
+        }
+
+        if !wnd.is_null() {
+            unimplemented!("Presenting to a different window is not supported");
+        }
+
+        let mut fl = 0;
+
+        // These flags are missing from `winapi`.
+        const DONOTWAIT: u32 = 1;
+        const LINEAR_CONTENT: u32 = 2;
+
+        if flags & DONOTWAIT != 0 {
+            fl |= DXGI_PRESENT_DO_NOT_WAIT;
+        }
+
+        // TODO: determine what we have to do to support sRGB.
+        if flags & LINEAR_CONTENT != 0 {
+            warn!("sRGB / gamma correction not yet supported");
+        }
+
+        // Try to present.
+        let result = unsafe { self.swap_chain.Present(self.sync_interval, fl) };
+
+        match result {
+            0 => Error::Success,
+            winerror::DXGI_ERROR_WAS_STILL_DRAWING => Error::WasStillDrawing,
+            hr => check_hresult!(hr, "Failed to present to screen"),
+        }
+    }
+
+    /// Copies data from the front buffer into a surface.
+    fn get_front_buffer_data(_fb: *mut IDirect3DSurface9) -> Error {
+        // TODO: we need to get the front buffer, then copy its data into the passed-in surface.
+        // We also need to ensure the format is converted to a format D3D9 supports.
         unimplemented!()
     }
 
-    fn get_front_buffer_data() {
+    /// Retrieves the the back buffer's surface.
+    fn get_back_buffer(
+        _idx: u32,
+        ty: D3DBACKBUFFER_TYPE,
+        _surf: *mut *mut IDirect3DSurface9,
+    ) -> Error {
+        // The docs specify that mono is the only valid type.
+        if ty != D3DBACKBUFFER_TYPE_MONO {
+            return Error::InvalidCall;
+        }
+
+        // TODO: use swap_chain->GetBuffer(idx, &texture) and then build a new surface.
+
         unimplemented!()
     }
 
-    fn get_back_buffer() {
-        unimplemented!()
+    /// Gets the status of the current scanline the rasterizer is processing.
+    fn get_raster_status(&self, rs: *mut D3DRASTER_STATUS) -> Error {
+        check_mut_ref(rs)?;
+
+        // We reported in the device caps that we don't support this.
+        Error::NotAvailable
     }
 
-    fn get_raster_status() {
-        unimplemented!()
+    /// Retrieves the swap chain's display mode.
+    fn get_display_mode(&self, dm: *mut D3DDISPLAYMODE) -> Error {
+        let dm = check_mut_ref(dm)?;
+        let pp = &self.pp;
+
+        *dm = D3DDISPLAYMODE {
+            Width: pp.BackBufferWidth,
+            Height: pp.BackBufferHeight,
+            Format: pp.BackBufferFormat,
+            RefreshRate: pp.FullScreen_RefreshRateInHz,
+        };
+
+        Error::Success
     }
 
-    fn get_display_mode() {
-        unimplemented!()
+    /// Gets the device which created this object.
+    fn get_device(&self, device: *mut *mut IDirect3DDevice9) -> Error {
+        let device = check_mut_ref(device)?;
+        *device = self.parent.clone().into();
+        Error::Success
     }
 
-    fn get_device() {
-        unimplemented!()
-    }
-
-    fn get_present_parameters() {
-        unimplemented!()
+    /// Retrieves the presentation parameters this swap chain was created with.
+    fn get_present_parameters(&self, pp: *mut D3DPRESENT_PARAMETERS) -> Error {
+        let pp = check_mut_ref(pp)?;
+        *pp = self.pp;
+        Error::Success
     }
 }

@@ -3,7 +3,9 @@ macro_rules! check_hresult {
     ($hr: ident, $msg: expr) => {
         if $hr != 0 {
             error!("{}: {:#X}", $msg, $hr);
-            return Err(crate::Error::DriverInternalError);
+            crate::Error::DriverInternalError
+        } else {
+            crate::Error::Success
         }
     };
 }
