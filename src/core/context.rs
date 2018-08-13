@@ -312,11 +312,6 @@ impl Context {
             ptr
         };
 
-        // Pass on the D3D11 device.
-        // Since ID3D11Device is thread safe, it doesn't matter if the app
-        // create multiple devices from the same adapter.
-        let d3d11_device = self.check_adapter(adapter)?.device();
-
         // This struct stores the original device creation parameters.
         let cp = D3DDEVICE_CREATION_PARAMETERS {
             AdapterOrdinal: adapter,
@@ -330,7 +325,7 @@ impl Context {
         let pp = check_mut_ref(pp)?;
 
         // Create the actual device.
-        let device = crate::Device::new(parent, d3d11_device, cp, pp)?;
+        let device = crate::Device::new(parent, self.check_adapter(adapter)?, cp, pp)?;
 
         // Now convert it to a raw pointer and return it.
         let ptr = Box::into_raw(Box::new(device));

@@ -19,6 +19,8 @@ build_script:
   - cargo build
 
 test_script:
+  # Enable Rust logging for our lib
+  - set RUST_LOG=info=d3d9
   - cargo test --all
 
 # Save the built DLL.

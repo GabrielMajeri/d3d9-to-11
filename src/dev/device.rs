@@ -1,5 +1,5 @@
 use winapi::{
-    shared::{d3d9::*, d3d9types::*},
+    shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*},
     um::d3d11::ID3D11Device,
     um::unknwnbase::{IUnknown, IUnknownVtbl},
 };
@@ -7,30 +7,48 @@ use winapi::{
 use com_impl::{implementation, interface};
 use comptr::ComPtr;
 
-use crate::Result;
+use crate::core::*;
+use crate::{Error, Result};
 
 /// Structure representing a logical graphics device.
 #[interface(IUnknown, IDirect3DDevice9)]
 pub struct Device {
     // Interface which created this device.
     parent: ComPtr<IDirect3D9>,
+    // The adapter this device represents.
+    //
+    // Since D3D11 is thread-safe, we allow multiple logical devices
+    // to share the same adapter.
+    //
+    // Since we own a handle to the parent, the ref is static.
+    adapter: &'static Adapter,
     // The equivalent interface from D3D11.
     device: ComPtr<ID3D11Device>,
+    // Store the creation params, since the app might request them later.
+    creation_params: D3DDEVICE_CREATION_PARAMETERS,
 }
 
 impl Device {
     /// Creates a new device.
     pub fn new(
         parent: ComPtr<IDirect3D9>,
-        device: ComPtr<ID3D11Device>,
-        _cp: D3DDEVICE_CREATION_PARAMETERS,
+        adapter: &Adapter,
+        cp: D3DDEVICE_CREATION_PARAMETERS,
         _pp: &mut D3DPRESENT_PARAMETERS,
     ) -> Result<Self> {
+        // Need to work around the lifetime system,
+        // Rust cannot know we share ownership of the device.
+        let adapter = unsafe { &*(adapter as *const Adapter) };
+
+        let device = adapter.device();
+
         let device = Self {
             __vtable: Self::create_vtable(),
             __refs: Self::create_refs(),
             parent,
+            adapter,
             device,
+            creation_params: cp,
         };
 
         Ok(device)
@@ -39,6 +57,52 @@ impl Device {
 
 #[implementation(IUnknown, IDirect3DDevice9)]
 impl Device {
+    // -- Device status functions --
+
+    /// Checks that the device has not yet been lost / reset.
+    fn test_cooperative_level() -> Error {
+        // Even if the device were lost, we wouldn't be able to do much.
+        Error::Success
+    }
+
+    /// Determines how much graphics memory is available.
+    fn get_available_texture_mem(&self) -> u32 {
+        self.adapter.available_memory()
+    }
+
+    /// Asks the driver to evict all managed resources from VRAM.
+    fn evict_managed_resources() -> Error {
+        // Do nothing. The D3D11 driver handles everything.
+        Error::Success
+    }
+
+    // -- Creation parameters functions --
+
+    /// Returns a reference to the parent interface.
+    fn get_direct_3_d(&self, ptr: *mut *mut IDirect3D9) -> Error {
+        let ptr = check_mut_ref(ptr)?;
+
+        *ptr = self.parent.clone().into();
+
+        Error::Success
+    }
+
+    /// Returns the caps of this device.
+    fn get_device_caps(&self, caps: *mut D3DCAPS9) -> Error {
+        let caps = check_mut_ref(caps)?;
+
+        *caps = self.adapter.caps();
+
+        Error::Success
+    }
+
+    /// Returns the creation parameters of this device.
+    fn get_creation_parameters(&self, params: *mut D3DDEVICE_CREATION_PARAMETERS) -> Error {
+        let params = check_mut_ref(params)?;
+        *params = self.creation_params;
+        Error::Success
+    }
+
     // Function stubs:
     // these are functions which are defined, but not yet implemented.
 
@@ -123,12 +187,6 @@ impl Device {
     fn end_state_block() {
         unimplemented!()
     }
-    fn evict_managed_resources() {
-        unimplemented!()
-    }
-    fn get_available_texture_mem() {
-        unimplemented!()
-    }
     fn get_back_buffer() {
         unimplemented!()
     }
@@ -138,19 +196,10 @@ impl Device {
     fn get_clip_status() {
         unimplemented!()
     }
-    fn get_creation_parameters() {
-        unimplemented!()
-    }
     fn get_current_texture_palette() {
         unimplemented!()
     }
     fn get_depth_stencil_surface() {
-        unimplemented!()
-    }
-    fn get_device_caps() {
-        unimplemented!()
-    }
-    fn get_direct_3_d() {
         unimplemented!()
     }
     fn get_display_mode() {
@@ -376,9 +425,6 @@ impl Device {
         unimplemented!()
     }
     fn stretch_rect() {
-        unimplemented!()
-    }
-    fn test_cooperative_level() {
         unimplemented!()
     }
     fn update_surface() {

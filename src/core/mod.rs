@@ -7,7 +7,7 @@ pub mod format;
 pub mod str;
 
 mod adapter;
-pub(self) use self::adapter::Adapter;
+pub use self::adapter::Adapter;
 
 mod context;
 pub use self::context::Context;

@@ -4,7 +4,7 @@ use comptr::ComPtr;
 
 use winapi::shared::d3d9caps::*;
 use winapi::shared::d3d9types::*;
-use winapi::shared::dxgi::{IDXGIAdapter, IDXGIOutput, DXGI_OUTPUT_DESC};
+use winapi::shared::dxgi::*;
 use winapi::shared::dxgitype::DXGI_MODE_DESC;
 use winapi::shared::windef::HMONITOR;
 use winapi::um::{d3d11::*, d3dcommon};
@@ -17,6 +17,8 @@ pub struct Adapter {
     index: u32,
     // DXGI interface representing a physical device.
     adapter: ComPtr<IDXGIAdapter>,
+    // Caches this adapter's description.
+    adapter_desc: DXGI_ADAPTER_DESC,
     // The display attached to this device.
     output: Option<ComPtr<IDXGIOutput>>,
     // Cache the display's properties.
@@ -32,6 +34,13 @@ impl Adapter {
     /// Creates a new adapter.
     pub fn new(index: u32, adapter: *mut IDXGIAdapter) -> Self {
         let adapter = ComPtr::new(adapter);
+
+        let adapter_desc = unsafe {
+            let mut desc = mem::uninitialized();
+            let result = adapter.GetDesc(&mut desc);
+            assert_eq!(result, 0, "Failed to get adapter description");
+            desc
+        };
 
         // D3D9 only supports one monitor per adapter.
         // TODO: allow user to choose which monitor they want to use.
@@ -86,6 +95,7 @@ impl Adapter {
         Self {
             index,
             adapter,
+            adapter_desc,
             output,
             output_desc,
             mode_cache: RefCell::new(HashMap::new()),
@@ -95,12 +105,7 @@ impl Adapter {
 
     /// Retrieves a description of this adapter.
     pub fn identifier(&self) -> D3DADAPTER_IDENTIFIER9 {
-        let desc = unsafe {
-            let mut desc = mem::uninitialized();
-            let result = self.adapter.GetDesc(&mut desc);
-            assert_eq!(result, 0, "Failed to get adapter description");
-            desc
-        };
+        let desc = &self.adapter_desc;
 
         let mut id: D3DADAPTER_IDENTIFIER9 = unsafe { mem::zeroed() };
 
@@ -361,6 +366,21 @@ impl Adapter {
     /// Clones this adapter's D3D11 device.
     pub fn device(&self) -> ComPtr<ID3D11Device> {
         self.device.clone()
+    }
+
+    /// Returns the amount of memory this adapter has.
+    pub fn available_memory(&self) -> u32 {
+        let desc = &self.adapter_desc;
+
+        // We return the sum of the VRAM and the amount of shared RAM.
+        // This is just a gross estimate.
+        let mem = desc.DedicatedVideoMemory + desc.DedicatedSystemMemory + desc.SharedSystemMemory;
+
+        // Round to the nearest MiB.
+        let mem = (mem / (1024 * 1024)) * (1024 * 1024);
+
+        // Need to clamp to 32-bits.
+        std::cmp::min(mem, std::u32::MAX as usize) as u32
     }
 
     /// Retrieves the output's display modes and caches them.
