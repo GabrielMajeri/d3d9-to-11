@@ -6,6 +6,9 @@
 mod format;
 pub use self::format::D3DFormatExt;
 
+mod msample;
+pub use self::msample::d3d9_to_dxgi_samples;
+
 pub mod str;
 
 mod adapter;

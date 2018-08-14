@@ -2,7 +2,7 @@ use std::ptr;
 
 use winapi::{
     shared::{
-        d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, dxgitype::*, windef::HWND,
+        d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::HWND,
     },
     um::{
         d3d11::*,
@@ -32,7 +32,7 @@ pub struct Device {
     // The equivalent interface from D3D11.
     device: ComPtr<ID3D11Device>,
     // The context in which commands are run.
-    device_ctx: ComPtr<ID3D11DeviceContext>,
+    ctx: ComPtr<ID3D11DeviceContext>,
     // Store the creation params, since the app might request them later.
     creation_params: D3DDEVICE_CREATION_PARAMETERS,
     // The DXGI factory which was used to create this device.
@@ -44,7 +44,9 @@ pub struct Device {
     // There is one for each device in an adapter group.
     swap_chains: Vec<ComPtr<SwapChain>>,
     // The device's currently set render targets.
-    render_targets: Vec<ComPtr<Surface>>,
+    render_targets: Vec<Option<ComPtr<Surface>>>,
+    // The device's current depth / stencil buffer.
+    depth_stencil: Option<ComPtr<Surface>>,
 }
 
 impl Device {
@@ -61,7 +63,7 @@ impl Device {
         let adapter = unsafe { &*(adapter as *const Adapter) };
 
         let device = adapter.device();
-        let device_ctx = unsafe {
+        let ctx = unsafe {
             let mut ptr = ptr::null_mut();
             device.GetImmediateContext(&mut ptr);
             ComPtr::new(ptr)
@@ -85,12 +87,13 @@ impl Device {
             parent,
             adapter,
             device,
-            device_ctx,
+            ctx,
             creation_params: cp,
             factory,
             window,
             swap_chains: Vec::new(),
             render_targets: Vec::new(),
+            depth_stencil: None,
         };
 
         // Create the default swap chain for the adapter.
@@ -99,12 +102,27 @@ impl Device {
         // Create the default render target for the swap chain.
         device.create_default_render_target()?;
 
-        // TODO: D/S buffer creation
+        // If the application requested it, we can automatically create
+        // a depth/stencil buffer for it.
         if pp.EnableAutoDepthStencil != 0 {
-            error!("Automatic depth / stencil creation not yet supported");
+            device.depth_stencil = {
+                let width = pp.BackBufferWidth;
+                let height = pp.BackBufferHeight;
+                let fmt = pp.AutoDepthStencilFormat;
+                let discard = pp.Flags & D3DPRESENTFLAG_DISCARD_DEPTHSTENCIL;
+
+                let mut ptr = ptr::null_mut();
+
+                device.create_depth_stencil_surface(
+                    width, height, fmt, 0, 1, discard, &mut ptr, 0,
+                )?;
+
+                Some(ComPtr::new(ptr))
+            };
         }
 
-        // TODO: we also have to set the new depth / stencil / render target state.
+        // Now that we have an initial RT / DS buffer, we need to set D3D11's state.
+        device.update_render_targets();
 
         Ok(unsafe { new_com_interface(device) })
     }
@@ -176,9 +194,46 @@ impl Device {
 
         let rt = self.create_render_target_helper(bbuf)?;
 
-        self.render_targets.push(rt);
+        self.render_targets.push(Some(rt));
 
         Ok(())
+    }
+
+    /// Retrieves a handle to a render target.
+    fn check_render_target(&self, i: u32) -> Result<&ComPtr<Surface>> {
+        if let Some(rt) = self.render_targets.get(i as usize) {
+            if let Some(rt) = rt {
+                Ok(rt)
+            } else {
+                Err(Error::NotFound)
+            }
+        } else {
+            Err(Error::NotFound)
+        }
+    }
+
+    /// Synchronises D3D9's render target views and depth / stencil view with D3D11.
+    fn update_render_targets(&self) {
+        let num = self.render_targets.len() as u32;
+
+        let mut rt_views = [ptr::null_mut(); 8];
+        for (i, rt) in self.render_targets.iter().enumerate() {
+            if let Some(rt) = rt {
+                rt_views[i] = rt.render_target_view().unwrap() as *mut _;
+            }
+        }
+
+        let ds_view = self
+            .depth_stencil
+            .as_ref()
+            .map(|ds| ds.depth_stencil_view().unwrap() as *mut _)
+            .unwrap_or(ptr::null_mut());
+
+        unsafe {
+            self.ctx.OMSetRenderTargets(num, rt_views.as_ptr(), ds_view);
+        }
+
+        // TODO: we also have to set the new viewport.
     }
 }
 
@@ -333,10 +388,7 @@ impl Device {
                 MipLevels: 1,
                 ArraySize: 1,
                 Format: fmt.to_dxgi(),
-                SampleDesc: DXGI_SAMPLE_DESC {
-                    Count: ms_ty,
-                    Quality: ms_qlt,
-                },
+                SampleDesc: d3d9_to_dxgi_samples(ms_ty, ms_qlt),
                 Usage: D3D11_USAGE_DEFAULT,
                 BindFlags: D3D11_BIND_RENDER_TARGET,
                 CPUAccessFlags: 0,
@@ -356,17 +408,148 @@ impl Device {
         unimplemented!()
     }
 
-    fn set_render_target() {
-        unimplemented!()
+    /// Sets a new render target on this device.
+    fn set_render_target(&mut self, i: u32, rt: *mut Surface) -> Error {
+        if i >= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT {
+            return Error::InvalidCall;
+        }
+
+        // The default render target is never allowed to be null.
+        if i == 0 && rt.is_null() {
+            return Error::InvalidCall;
+        }
+
+        let i = i as usize;
+
+        // Ensure the RT vector contains at least as many entries as we need.
+        self.render_targets.resize(i + 1, None);
+
+        self.render_targets[i] = if let Some(rt) = unsafe { rt.as_mut() } {
+            // Ensure this surface is indeed a render target.
+            if rt.render_target_view().is_none() {
+                return Error::InvalidCall;
+            }
+
+            Some(ComPtr::new(rt))
+        } else {
+            None
+        };
+
+        self.update_render_targets();
+
+        Error::Success
     }
 
-    fn get_render_target() {
-        unimplemented!()
+    /// Retrieves a reference to a bound render target.
+    fn get_render_target(&self, i: u32, ret: *mut *mut Surface) -> Error {
+        let rt = self.check_render_target(i)?;
+        let ret = check_mut_ref(ret)?;
+
+        *ret = rt.clone().into();
+
+        Error::Success
     }
 
     /// Copies a render target's data into a surface.
     fn get_render_target_data(&self, _rt: *mut Surface, _dest: *mut Surface) {
         unimplemented!()
+    }
+
+    // -- Depth / stencil buffer functions --
+
+    /// Creates a new depth / stencil buffer.
+    fn create_depth_stencil_surface(
+        &mut self,
+        width: u32,
+        height: u32,
+        fmt: D3DFORMAT,
+        _ms_ty: D3DMULTISAMPLE_TYPE,
+        _ms_qlt: u32,
+        discard: u32,
+        ret: *mut *mut Surface,
+        shared_handle: usize,
+    ) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        if shared_handle != 0 {
+            error!("Shared resources are not supported");
+            return Error::InvalidCall;
+        }
+
+        if discard != 0 {
+            error!("Discarding depth/stencil buffer not supported");
+        }
+
+        let texture = unsafe {
+            let desc = D3D11_TEXTURE2D_DESC {
+                Width: width,
+                Height: height,
+                MipLevels: 1,
+                ArraySize: 1,
+                Format: fmt.to_dxgi(),
+                // D/S buffers cannot be multisampled.
+                SampleDesc: d3d9_to_dxgi_samples(1, 0),
+                Usage: D3D11_USAGE_DEFAULT,
+                BindFlags: D3D11_BIND_DEPTH_STENCIL,
+                CPUAccessFlags: 0,
+                MiscFlags: 0,
+            };
+
+            let mut ptr = ptr::null_mut();
+
+            let result = self.device.CreateTexture2D(&desc, ptr::null(), &mut ptr);
+            check_hresult(result, "Failed to create depth / stencil buffer")?;
+
+            ComPtr::new(ptr)
+        };
+
+        let ds_view = unsafe {
+            let resource = texture.upcast().as_mut();
+
+            let mut ptr = ptr::null_mut();
+
+            let result = self
+                .device
+                .CreateDepthStencilView(resource, ptr::null(), &mut ptr);
+            check_hresult(result, "Failed to create depth / stencil view")?;
+
+            ComPtr::new(ptr)
+        };
+
+        let parent = ComPtr::new(self).clone();
+        let data = SurfaceData::DepthStencil(ds_view);
+
+        *ret = Surface::new(parent, texture, 0, data).into();
+
+        Error::Success
+    }
+
+    /// Sets the current depth / stencil buffer.
+    fn set_depth_stencil_surface(&mut self, ds: *mut Surface) -> Error {
+        self.depth_stencil = if let Some(ds) = unsafe { ds.as_mut() } {
+            if ds.depth_stencil_view().is_none() {
+                return Error::InvalidCall;
+            }
+
+            Some(ComPtr::new(ds))
+        } else {
+            None
+        };
+
+        Error::Success
+    }
+
+    /// Retrieves the bound depth / stencil buffer.
+    fn get_depth_stencil_surface(&self, ret: *mut *mut Surface) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        *ret = self
+            .depth_stencil
+            .as_ref()
+            .map(|ds| ds.clone().into())
+            .unwrap_or(ptr::null_mut());
+
+        Error::Success
     }
 
     // Function stubs:
@@ -385,9 +568,6 @@ impl Device {
         unimplemented!()
     }
     fn create_cube_texture() {
-        unimplemented!()
-    }
-    fn create_depth_stencil_surface() {
         unimplemented!()
     }
     fn create_index_buffer() {
@@ -454,9 +634,6 @@ impl Device {
         unimplemented!()
     }
     fn get_current_texture_palette() {
-        unimplemented!()
-    }
-    fn get_depth_stencil_surface() {
         unimplemented!()
     }
     fn get_f_v_f() {
@@ -565,9 +742,6 @@ impl Device {
         unimplemented!()
     }
     fn set_cursor_properties() {
-        unimplemented!()
-    }
-    fn set_depth_stencil_surface() {
         unimplemented!()
     }
     fn set_dialog_box_mode() {

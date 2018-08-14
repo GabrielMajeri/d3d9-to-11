@@ -36,6 +36,8 @@ pub enum SurfaceData {
     None,
     /// This surface is owning a render target.
     RenderTarget(ComPtr<ID3D11RenderTargetView>),
+    /// This surface is owning a depth / stencil buffer.
+    DepthStencil(ComPtr<ID3D11DepthStencilView>),
 }
 
 impl Surface {
@@ -59,6 +61,24 @@ impl Surface {
         surface.__vtable.parent.parent = Self::__create_IUnknownVtbl();
 
         unsafe { new_com_interface(surface) }
+    }
+
+    /// If this surface is a render target, retrieves the associated RT view.
+    pub fn render_target_view(&self) -> Option<&mut ID3D11RenderTargetView> {
+        if let SurfaceData::RenderTarget(ref view) = self.data {
+            Some(view.as_mut())
+        } else {
+            None
+        }
+    }
+
+    /// If this surface is a depth / stencil buffer, retrieves the associated DS view.
+    pub fn depth_stencil_view(&self) -> Option<&mut ID3D11DepthStencilView> {
+        if let SurfaceData::DepthStencil(ref view) = self.data {
+            Some(view.as_mut())
+        } else {
+            None
+        }
     }
 
     /// Inherit Resource's implementation.

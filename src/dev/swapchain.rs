@@ -113,11 +113,7 @@ impl SwapChain {
                     cmp::min(16, cmp::max(1, pp.MultiSampleType))
                 };
 
-                DXGI_SAMPLE_DESC {
-                    Count: count,
-                    // We ignore the MS quality: we either enable MS, or we don't.
-                    Quality: 0,
-                }
+                d3d9_to_dxgi_samples(count, pp.MultiSampleQuality)
             };
 
             let buffer_usage = DXGI_USAGE_BACK_BUFFER | DXGI_USAGE_RENDER_TARGET_OUTPUT;
