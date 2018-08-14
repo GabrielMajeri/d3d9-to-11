@@ -1,0 +1,23 @@
+dist: trusty
+sudo: false
+
+language: rust
+rust:
+  - nightly
+
+# Cache our dependencies.
+cache: cargo
+
+install:
+  - rustup target add i686-pc-windows-gnu
+
+# Only build, but don't run the tests,
+# since we don't have a GPU in Travis.
+script:
+  - cargo build
+
+# Use the APT addon to install MinGW.
+addons:
+  apt:
+    packages:
+    - gcc-mingw-w64-i686
