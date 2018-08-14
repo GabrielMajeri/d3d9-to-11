@@ -408,7 +408,7 @@ impl Adapter {
             }
         }
 
-        let format = fmt.to_dxgi();
+        let format = fmt.to_dxgi_display_format();
         let flags = 0;
 
         // Determine how big the list should be.

@@ -9,7 +9,11 @@ use winapi::shared::dxgiformat::*;
 
 /// Extensions for the D3DFormat type.
 pub trait D3DFormatExt {
+    /// Converts a general resource format to a DXGI format.
     fn to_dxgi(self) -> DXGI_FORMAT;
+
+    /// Converts a display mode format to its corresponding DXGI format.
+    fn to_dxgi_display_format(self) -> DXGI_FORMAT;
 
     // Functions for validating the various format types.
 
@@ -32,6 +36,7 @@ impl D3DFormatExt for D3DFORMAT {
             // 8 bit formats
             D3DFMT_R3G3B2 => DXGI_FORMAT_R8_UNORM,
             D3DFMT_A8 => DXGI_FORMAT_A8_UNORM,
+            D3DFMT_L8 => DXGI_FORMAT_R8_UNORM,
 
             // 16 bit formats
             D3DFMT_A8R3G3B2 => DXGI_FORMAT_R8G8_UNORM,
@@ -40,6 +45,7 @@ impl D3DFormatExt for D3DFORMAT {
             D3DFMT_A4R4G4B4 => DXGI_FORMAT_B4G4R4A4_UNORM,
             D3DFMT_X1R5G5B5 => DXGI_FORMAT_B5G5R5A1_UNORM,
             D3DFMT_A1R5G5B5 => DXGI_FORMAT_B5G5R5A1_UNORM,
+            D3DFMT_L16 => DXGI_FORMAT_R16_UNORM,
 
             // 24 bit formats
             D3DFMT_R8G8B8 => DXGI_FORMAT_B8G8R8X8_UNORM,
@@ -70,6 +76,7 @@ impl D3DFormatExt for D3DFORMAT {
             // Buffer formats
             D3DFMT_R16F => DXGI_FORMAT_R16_FLOAT,
             D3DFMT_G16R16F => DXGI_FORMAT_R16G16_FLOAT,
+            D3DFMT_A16B16G16R16 => DXGI_FORMAT_R16G16B16A16_UINT,
             D3DFMT_A16B16G16R16F => DXGI_FORMAT_R16G16B16A16_FLOAT,
             D3DFMT_R32F => DXGI_FORMAT_R32_FLOAT,
             D3DFMT_G32R32F => DXGI_FORMAT_R32G32_FLOAT,
@@ -78,6 +85,15 @@ impl D3DFormatExt for D3DFORMAT {
             // Unknown formats
             D3DFMT_UNKNOWN => DXGI_FORMAT_UNKNOWN,
             _ => panic!("Unknown D3D9 format: {}", self),
+        }
+    }
+
+    fn to_dxgi_display_format(self) -> DXGI_FORMAT {
+        match self {
+            // We have to map all these formats to a format DXGI supports.
+            D3DFMT_R8G8B8..=D3DFMT_A1R5G5B5 | D3DFMT_UNKNOWN => DXGI_FORMAT_B8G8R8A8_UNORM,
+            D3DFMT_A2R10G10B10 => DXGI_FORMAT_R10G10B10A2_UNORM,
+            _ => panic!("Unknown D3D9 display format: {}", self),
         }
     }
 

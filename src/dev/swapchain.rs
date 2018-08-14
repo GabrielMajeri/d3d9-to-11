@@ -93,14 +93,14 @@ impl SwapChain {
 
                 // If it's unknown, use the display's one.
                 if *fmt == D3DFMT_UNKNOWN {
-                    *fmt = D3DFMT_X8R8G8B8;
+                    *fmt = D3DFMT_A8R8G8B8;
                 }
 
                 DXGI_MODE_DESC {
                     Width: width,
                     Height: height,
                     RefreshRate: refresh_rate,
-                    Format: fmt.to_dxgi(),
+                    Format: fmt.to_dxgi_display_format(),
                     ScanlineOrdering: DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
                     Scaling: DXGI_MODE_SCALING_UNSPECIFIED,
                 }
@@ -169,10 +169,7 @@ impl SwapChain {
 
             let result = factory.CreateSwapChain(device, &mut sc_desc, &mut ptr);
 
-            if result != 0 {
-                error!("Failed to create swap chain: {:#X}", result);
-                return Err(Error::NotAvailable);
-            }
+            check_hresult!(result, "Failed to create swap chain");
 
             ComPtr::new(ptr)
         };
