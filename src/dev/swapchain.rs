@@ -13,12 +13,9 @@ use winapi::{
 use com_impl::{implementation, interface};
 use comptr::ComPtr;
 
-use crate::{
-    core::{format::D3DFormatExt, *},
-    Error, Result,
-};
+use crate::{core::*, Error, Result};
 
-use super::Surface;
+use super::{Device, Surface, SurfaceData};
 
 /// Represents a swap chain, which is a queue of buffers
 /// on which the app can draw.
@@ -29,7 +26,7 @@ use super::Surface;
 #[interface(IUnknown, IDirect3DSwapChain9)]
 pub struct SwapChain {
     // Parent device of this interface.
-    parent: ComPtr<IDirect3DDevice9>,
+    parent: ComPtr<Device>,
     // The equivalent DXGI interface.
     swap_chain: ComPtr<IDXGISwapChain>,
     // Store these for retrieving them later.
@@ -43,7 +40,7 @@ pub struct SwapChain {
 impl SwapChain {
     /// Creates a new swap chain with the given parameters, which presents into a window.
     pub fn new(
-        parent: ComPtr<IDirect3DDevice9>,
+        parent: ComPtr<Device>,
         device: &mut IUnknown,
         factory: &IDXGIFactory,
         pp: &mut D3DPRESENT_PARAMETERS,
@@ -169,7 +166,7 @@ impl SwapChain {
 
             let result = factory.CreateSwapChain(device, &mut sc_desc, &mut ptr);
 
-            check_hresult!(result, "Failed to create swap chain");
+            check_hresult!(result, "Failed to create swap chain")?;
 
             ComPtr::new(ptr)
         };
@@ -188,7 +185,21 @@ impl SwapChain {
             sync_interval,
         };
 
-        Ok(ComPtr::new(unsafe { new_com_interface(swap_chain) }))
+        Ok(unsafe { new_com_interface(swap_chain) })
+    }
+
+    /// Retrieves a buffer in this swap chain.
+    pub fn buffer(&self, id: u32) -> Result<ComPtr<ID3D11Texture2D>> {
+        let mut ptr: *mut ID3D11Texture2D = ptr::null_mut();
+        let uuid = ID3D11Texture2D::uuidof();
+
+        let ret = &mut ptr as *mut _ as *mut *mut _;
+
+        let result = unsafe { self.swap_chain.GetBuffer(id, &uuid, ret) };
+
+        check_hresult!(result, "Failed to retrieve swap chain buffer")?;
+
+        Ok(ComPtr::new(ptr))
     }
 }
 
@@ -245,7 +256,8 @@ impl SwapChain {
     }
 
     /// Copies data from the front buffer into a surface.
-    pub fn get_front_buffer_data(&self, _fb: *mut IDirect3DSurface9) -> Error {
+    pub fn get_front_buffer_data(&self, fb: *mut Surface) -> Error {
+        let _fb = check_mut_ref(fb);
         // TODO: we need to get the front buffer, then copy its data into the passed-in surface.
         // We also need to ensure the format is converted to a format D3D9 supports.
         unimplemented!()
@@ -256,7 +268,7 @@ impl SwapChain {
         &self,
         idx: u32,
         ty: D3DBACKBUFFER_TYPE,
-        surf: *mut *mut IDirect3DSurface9,
+        surf: *mut *mut Surface,
     ) -> Error {
         let surf = check_mut_ref(surf)?;
 
@@ -271,23 +283,10 @@ impl SwapChain {
         }
 
         // Retrieve the 2D texture representing this back buffer.
-        let buffer = unsafe {
-            let mut ptr = ptr::null_mut();
-            let uuid = ID3D11Texture2D::uuidof();
-
-            let result = self.swap_chain.GetBuffer(
-                idx,
-                &uuid,
-                &mut ptr,
-            );
-
-            check_hresult!(result, "Failed to retrieve swap chain buffer");
-
-            ComPtr::new(ptr as *mut ID3D11Texture2D)
-        };
+        let buffer = self.buffer(idx)?;
 
         // Create and return a pointer to the surface.
-        *surf = Surface::from_texture(self.parent.clone(), buffer, 0).into();
+        *surf = Surface::new(self.parent.clone(), buffer, 0, SurfaceData::None).into();
 
         Error::Success
     }
@@ -316,7 +315,7 @@ impl SwapChain {
     }
 
     /// Gets the device which created this object.
-    pub fn get_device(&self, device: *mut *mut IDirect3DDevice9) -> Error {
+    pub fn get_device(&self, device: *mut *mut Device) -> Error {
         let device = check_mut_ref(device)?;
         *device = self.parent.clone().into();
         Error::Success

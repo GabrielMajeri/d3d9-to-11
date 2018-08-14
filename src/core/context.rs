@@ -17,8 +17,7 @@ use winapi::{
 use com_impl::{implementation, interface};
 
 use super::*;
-use crate::core::format::D3DFormatExt;
-use crate::{Error, Result};
+use crate::{core::format::D3DFormatExt, dev::Device, Error, Result};
 
 /// D3D9 interface which stores all application context.
 ///
@@ -32,7 +31,7 @@ pub struct Context {
 
 impl Context {
     /// Creates a new D3D9 context.
-    pub fn new() -> Result<*mut IDirect3D9> {
+    pub fn new() -> Result<ComPtr<Context>> {
         // We first have to create a factory, which is the equivalent of this interface in DXGI terms.
         let factory = unsafe {
             let uuid = dxgi::IDXGIFactory::uuidof();
@@ -302,7 +301,7 @@ impl Context {
         focus: HWND,
         flags: u32,
         pp: *mut D3DPRESENT_PARAMETERS,
-        device: *mut *mut IDirect3DDevice9,
+        device: *mut *mut Device,
     ) -> Error {
         self.check_devty(ty)?;
         let ret = check_mut_ref(device)?;
@@ -313,7 +312,7 @@ impl Context {
         }
 
         // The device will need to hold a strong reference back to this interface.
-        let parent = self_ref(self);
+        let parent = ComPtr::new(self).clone();
 
         // This struct stores the original device creation parameters.
         let cp = D3DDEVICE_CREATION_PARAMETERS {
@@ -334,7 +333,7 @@ impl Context {
             cp,
             pp,
             self.factory.clone(),
-        )?;
+        )?.into();
 
         Error::Success
     }
@@ -352,13 +351,13 @@ mod tests {
         {
             let ctx = Context::new().expect("Failed to create context");
 
-            original_count = unsafe { ctx.GetAdapterCount() };
+            original_count = ctx.get_adapter_count();
             assert!(original_count > 0, "No GPUs found on the system.");
 
             copy = ctx.clone();
         }
 
-        let count = unsafe { copy.GetAdapterCount() };
+        let count = copy.get_adapter_count();
 
         assert_eq!(original_count, count);
     }

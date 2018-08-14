@@ -11,7 +11,7 @@ use winapi::{
 use com_impl::{implementation, interface};
 use comptr::ComPtr;
 
-use super::Resource;
+use super::{Device, Resource};
 use crate::{core::*, Error};
 
 /// Represents a 2D contiguous array of pixels.
@@ -23,23 +23,36 @@ pub struct Surface {
     // An index representing the sub-resource we are owning.
     // Can be 0 to indicate a top-level resource.
     subresource: u32,
+    // Extra data required for this surface type.
+    data: SurfaceData,
+}
+
+/// Extra information required to fully describe a surface.
+///
+/// In D3D9, a surface can represent quite a lot of things,
+/// so this enum is used to store the data required for each kind.
+pub enum SurfaceData {
+    /// This is an ordinary surface.
+    None,
+    /// This surface is owning a render target.
+    RenderTarget(ComPtr<ID3D11RenderTargetView>),
 }
 
 impl Surface {
-    /// Creates a new surface from a D3D11 2D texture.
-    ///
-    /// This constructor is usually called by all other surface constructors.
-    pub fn from_texture(
-        device: ComPtr<IDirect3DDevice9>,
+    /// Creates a new surface from a D3D11 2D texture, and possibly some extra data.
+    pub fn new(
+        device: ComPtr<Device>,
         texture: ComPtr<ID3D11Texture2D>,
         subresource: u32,
-    ) -> *mut IDirect3DSurface9 {
+        data: SurfaceData,
+    ) -> ComPtr<Self> {
         let mut surface = Self {
             __vtable: Self::create_vtable(),
             __refs: Self::create_refs(),
             parent: Resource::new(device, D3DRTYPE_SURFACE),
             texture,
             subresource,
+            data,
         };
 
         // Fix up the vtables.

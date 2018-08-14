@@ -1,15 +1,19 @@
 use std::ptr;
 
 use winapi::{
-    shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::HWND},
-    um::d3d11::{ID3D11Device, ID3D11DeviceContext},
-    um::unknwnbase::{IUnknown, IUnknownVtbl},
+    shared::{
+        d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, dxgitype::*, windef::HWND,
+    },
+    um::{
+        d3d11::*,
+        unknwnbase::{IUnknown, IUnknownVtbl},
+    },
 };
 
 use com_impl::{implementation, interface};
 use comptr::ComPtr;
 
-use super::SwapChain;
+use super::{Surface, SurfaceData, SwapChain};
 use crate::core::*;
 use crate::{Error, Result};
 
@@ -17,7 +21,7 @@ use crate::{Error, Result};
 #[interface(IUnknown, IDirect3DDevice9)]
 pub struct Device {
     // Interface which created this device.
-    parent: ComPtr<IDirect3D9>,
+    parent: ComPtr<Context>,
     // The adapter this device represents.
     //
     // Since D3D11 is thread-safe, we allow multiple logical devices
@@ -39,17 +43,19 @@ pub struct Device {
     // The implicit swap chain for the back buffer.
     // There is one for each device in an adapter group.
     swap_chains: Vec<ComPtr<SwapChain>>,
+    // The device's currently set render targets.
+    render_targets: Vec<ComPtr<Surface>>,
 }
 
 impl Device {
     /// Creates a new device.
     pub fn new(
-        parent: ComPtr<IDirect3D9>,
+        parent: ComPtr<Context>,
         adapter: &Adapter,
         cp: D3DDEVICE_CREATION_PARAMETERS,
         pp: &mut D3DPRESENT_PARAMETERS,
         factory: ComPtr<IDXGIFactory>,
-    ) -> Result<*mut IDirect3DDevice9> {
+    ) -> Result<ComPtr<Device>> {
         // Need to work around the lifetime system,
         // Rust cannot know we share ownership of the device.
         let adapter = unsafe { &*(adapter as *const Adapter) };
@@ -84,15 +90,21 @@ impl Device {
             factory,
             window,
             swap_chains: Vec::new(),
+            render_targets: Vec::new(),
         };
 
-        // Create the swap chain for the default render target.
+        // Create the default swap chain for the adapter.
         device.create_default_swap_chain(pp)?;
+
+        // Create the default render target for the swap chain.
+        device.create_default_render_target()?;
 
         // TODO: D/S buffer creation
         if pp.EnableAutoDepthStencil != 0 {
             error!("Automatic depth / stencil creation not yet supported");
         }
+
+        // TODO: we also have to set the new depth / stencil / render target state.
 
         Ok(unsafe { new_com_interface(device) })
     }
@@ -127,9 +139,46 @@ impl Device {
 
     /// Tries to retrieve a swap chain based on the index.
     fn check_swap_chain(&self, sc: u32) -> Result<&ComPtr<SwapChain>> {
-        self.swap_chains
-            .get(sc as usize)
-            .ok_or(Error::InvalidCall)
+        self.swap_chains.get(sc as usize).ok_or(Error::InvalidCall)
+    }
+
+    /// Helper function for creating render targets.
+    fn create_render_target_helper(
+        &mut self,
+        texture: ComPtr<ID3D11Texture2D>,
+    ) -> Result<ComPtr<Surface>> {
+        // Create a render target view into the texture.
+        let rt_view = unsafe {
+            let resource = texture.upcast().as_mut();
+
+            let mut ptr = ptr::null_mut();
+
+            let result = self
+                .device
+                .CreateRenderTargetView(resource, ptr::null_mut(), &mut ptr);
+
+            check_hresult!(result, "Failed to create render target view")?;
+
+            ComPtr::new(ptr)
+        };
+
+        let parent = ComPtr::new(self).clone();
+        let data = SurfaceData::RenderTarget(rt_view);
+        let surface = Surface::new(parent, texture, 0, data);
+
+        Ok(surface)
+    }
+
+    /// Creates the default render target for this device.
+    fn create_default_render_target(&mut self) -> Result<()> {
+        let sc = &self.swap_chains[0];
+        let bbuf = sc.buffer(0)?;
+
+        let rt = self.create_render_target_helper(bbuf)?;
+
+        self.render_targets.push(rt);
+
+        Ok(())
     }
 }
 
@@ -157,7 +206,7 @@ impl Device {
     // -- Creation parameters functions --
 
     /// Returns a reference to the parent interface.
-    fn get_direct_3_d(&self, ptr: *mut *mut IDirect3D9) -> Error {
+    fn get_direct_3_d(&self, ptr: *mut *mut Context) -> Error {
         let ptr = check_mut_ref(ptr)?;
 
         *ptr = self.parent.clone().into();
@@ -189,7 +238,7 @@ impl Device {
         pp: *mut D3DPRESENT_PARAMETERS,
         ret: *mut *mut SwapChain,
     ) -> Error {
-        let parent = self_ref(self);
+        let parent = ComPtr::new(self).clone();
         let device = self.device.upcast().as_mut();
         let factory = self.factory.as_mut();
         let pp = check_mut_ref(pp)?;
@@ -227,11 +276,17 @@ impl Device {
         Error::Success
     }
 
-    fn get_front_buffer_data(&self, sc: u32, fb: *mut IDirect3DSurface9) -> Error {
+    fn get_front_buffer_data(&self, sc: u32, fb: *mut Surface) -> Error {
         self.check_swap_chain(sc)?.get_front_buffer_data(fb)
     }
 
-    fn get_back_buffer(&self, sc: u32, bi: u32, ty: D3DBACKBUFFER_TYPE, ret: *mut *mut IDirect3DSurface9) -> Error {
+    fn get_back_buffer(
+        &self,
+        sc: u32,
+        bi: u32,
+        ty: D3DBACKBUFFER_TYPE,
+        ret: *mut *mut Surface,
+    ) -> Error {
         self.check_swap_chain(sc)?.get_back_buffer(bi, ty, ret)
     }
 
@@ -241,6 +296,77 @@ impl Device {
 
     fn get_display_mode(&self, sc: u32, dm: *mut D3DDISPLAYMODE) -> Error {
         self.check_swap_chain(sc)?.get_display_mode(dm)
+    }
+
+    // -- Render target functions --
+
+    /// Creates a new render target.
+    fn create_render_target(
+        &mut self,
+        width: u32,
+        height: u32,
+        fmt: D3DFORMAT,
+        ms_ty: D3DMULTISAMPLE_TYPE,
+        ms_qlt: u32,
+        lockable: u32,
+        ret: *mut *mut Surface,
+        shared_handle: usize,
+    ) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        if lockable != 0 {
+            error!("Lockable render targets are not supported");
+        }
+
+        if shared_handle != 0 {
+            error!("Shared resources are not supported");
+            return Error::InvalidCall;
+        }
+
+        let device = &self.device;
+
+        // First we need to create a texture we will render to.
+        let texture = unsafe {
+            let desc = D3D11_TEXTURE2D_DESC {
+                Width: width,
+                Height: height,
+                MipLevels: 1,
+                ArraySize: 1,
+                Format: fmt.to_dxgi(),
+                SampleDesc: DXGI_SAMPLE_DESC {
+                    Count: ms_ty,
+                    Quality: ms_qlt,
+                },
+                Usage: D3D11_USAGE_DEFAULT,
+                BindFlags: D3D11_BIND_RENDER_TARGET,
+                CPUAccessFlags: 0,
+                MiscFlags: 0,
+            };
+
+            let mut ptr = ptr::null_mut();
+
+            let result = device.CreateTexture2D(&desc, ptr::null_mut(), &mut ptr);
+            check_hresult!(result, "Failed to create 2D texture for render target")?;
+
+            ComPtr::new(ptr)
+        };
+
+        *ret = self.create_render_target_helper(texture)?.into();
+
+        unimplemented!()
+    }
+
+    fn set_render_target() {
+        unimplemented!()
+    }
+
+    fn get_render_target() {
+        unimplemented!()
+    }
+
+    /// Copies a render target's data into a surface.
+    fn get_render_target_data(&self, _rt: *mut Surface, _dest: *mut Surface) {
+        unimplemented!()
     }
 
     // Function stubs:
@@ -274,9 +400,6 @@ impl Device {
         unimplemented!()
     }
     fn create_query() {
-        unimplemented!()
-    }
-    fn create_render_target() {
         unimplemented!()
     }
     fn create_state_block() {
@@ -373,12 +496,6 @@ impl Device {
         unimplemented!()
     }
     fn get_render_state() {
-        unimplemented!()
-    }
-    fn get_render_target() {
-        unimplemented!()
-    }
-    fn get_render_target_data() {
         unimplemented!()
     }
     fn get_sampler_state() {
@@ -490,9 +607,6 @@ impl Device {
         unimplemented!()
     }
     fn set_render_state() {
-        unimplemented!()
-    }
-    fn set_render_target() {
         unimplemented!()
     }
     fn set_sampler_state() {

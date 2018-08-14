@@ -11,4 +11,4 @@ mod resource;
 pub use self::resource::Resource;
 
 mod surface;
-pub use self::surface::Surface;
+pub use self::surface::{Surface, SurfaceData};
