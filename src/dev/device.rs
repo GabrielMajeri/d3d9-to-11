@@ -49,7 +49,7 @@ impl Device {
         cp: D3DDEVICE_CREATION_PARAMETERS,
         pp: &mut D3DPRESENT_PARAMETERS,
         factory: ComPtr<IDXGIFactory>,
-    ) -> Result<ComPtr<IDirect3DDevice9>> {
+    ) -> Result<*mut IDirect3DDevice9> {
         // Need to work around the lifetime system,
         // Rust cannot know we share ownership of the device.
         let adapter = unsafe { &*(adapter as *const Adapter) };

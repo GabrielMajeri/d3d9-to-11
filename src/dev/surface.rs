@@ -33,7 +33,7 @@ impl Surface {
         device: ComPtr<IDirect3DDevice9>,
         texture: ComPtr<ID3D11Texture2D>,
         subresource: u32,
-    ) -> ComPtr<IDirect3DSurface9> {
+    ) -> *mut IDirect3DSurface9 {
         let mut surface = Self {
             __vtable: Self::create_vtable(),
             __refs: Self::create_refs(),

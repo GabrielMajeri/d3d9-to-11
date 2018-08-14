@@ -39,16 +39,12 @@ pub fn check_mut_ref<'a, T>(ptr: *mut T) -> Result<&'a mut T> {
 /// Creates a new heap-allocated COM interface from a Rust structure.
 ///
 /// Unsafe because there is no way of checking if `this` implements the desired interface.
-pub unsafe fn new_com_interface<T, I>(this: T) -> ComPtr<I>
+pub unsafe fn new_com_interface<T, I>(this: T) -> *mut I
 where
     I: Interface,
 {
-    let ptr = Box::into_raw(Box::new(this));
-
     // Danger right here.
-    let ptr = ptr as *mut _;
-
-    ComPtr::new(ptr)
+    Box::into_raw(Box::new(this)) as *mut _
 }
 
 /// Creates a new reference to a type which implements IUnknown.

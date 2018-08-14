@@ -48,7 +48,7 @@ impl SwapChain {
         factory: &IDXGIFactory,
         pp: &mut D3DPRESENT_PARAMETERS,
         window: HWND,
-    ) -> Result<ComPtr<IDirect3DSwapChain9>> {
+    ) -> Result<*mut IDirect3DSwapChain9> {
         // First we need to set up the description of this swap chain.
         let mut sc_desc = {
             // Fill in the description of the back buffer.

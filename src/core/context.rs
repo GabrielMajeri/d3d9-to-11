@@ -32,7 +32,7 @@ pub struct Context {
 
 impl Context {
     /// Creates a new D3D9 context.
-    pub fn new() -> Result<ComPtr<IDirect3D9>> {
+    pub fn new() -> Result<*mut IDirect3D9> {
         // We first have to create a factory, which is the equivalent of this interface in DXGI terms.
         let factory = unsafe {
             let uuid = dxgi::IDXGIFactory::uuidof();
@@ -334,7 +334,7 @@ impl Context {
             cp,
             pp,
             self.factory.clone(),
-        )?.into();
+        )?;
 
         Error::Success
     }
