@@ -9,7 +9,7 @@ use winapi::shared::dxgitype::DXGI_MODE_DESC;
 use winapi::shared::windef::HMONITOR;
 use winapi::um::{d3d11::*, d3dcommon};
 
-use crate::{core::format::D3DFormatExt, Error, Result};
+use crate::{core::*, Error, Result};
 
 /// This class represents a physical graphics adapter (GPU).
 pub struct Adapter {
@@ -38,7 +38,7 @@ impl Adapter {
             let mut desc = mem::uninitialized();
             let result = adapter.GetDesc(&mut desc);
 
-            check_hresult!(result, "Failed to get adapter description")?;
+            check_hresult(result, "Failed to get adapter description")?;
 
             desc
         };
@@ -66,7 +66,7 @@ impl Adapter {
                 let mut desc = mem::uninitialized();
                 let result = output.GetDesc(&mut desc);
 
-                check_hresult!(result, "Failed to get output description")?;
+                check_hresult(result, "Failed to get output description")?;
 
                 Ok(desc)
             }).ok();
@@ -91,7 +91,7 @@ impl Adapter {
                 ptr::null_mut(),
             );
 
-            check_hresult!(result, "Failed to create D3D11 device")?;
+            check_hresult(result, "Failed to create D3D11 device")?;
 
             ComPtr::new(device)
         };

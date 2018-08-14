@@ -27,6 +27,18 @@ pub fn check_not_null<T>(ptr: *mut T) -> Error {
     }
 }
 
+/// Checks that a HRESULT returned successfully, otherwise returns an error.
+#[must_use]
+pub fn check_hresult(hr: i32, msg: &'static str) -> Error {
+    if hr != 0 {
+        let err = std::io::Error::from_raw_os_error(hr);
+        error!("{}: {}", msg, err);
+        crate::Error::DriverInternalError
+    } else {
+        crate::Error::Success
+    }
+}
+
 /// Tries to convert pointer parameter into a reference.
 pub fn check_ref<'a, T>(ptr: *const T) -> Result<&'a T> {
     unsafe { ptr.as_ref().ok_or(Error::InvalidCall) }

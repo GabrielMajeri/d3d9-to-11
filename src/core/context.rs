@@ -38,7 +38,7 @@ impl Context {
             let mut factory: *mut dxgi::IDXGIFactory = ptr::null_mut();
 
             let result = dxgi::CreateDXGIFactory(&uuid, &mut factory as *mut _ as usize as *mut _);
-            check_hresult!(result, "Failed to create DXGI factory")?;
+            check_hresult(result, "Failed to create DXGI factory")?;
 
             ComPtr::new(factory)
         };

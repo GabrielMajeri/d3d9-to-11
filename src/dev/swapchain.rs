@@ -166,7 +166,7 @@ impl SwapChain {
 
             let result = factory.CreateSwapChain(device, &mut sc_desc, &mut ptr);
 
-            check_hresult!(result, "Failed to create swap chain")?;
+            check_hresult(result, "Failed to create swap chain")?;
 
             ComPtr::new(ptr)
         };
@@ -197,7 +197,7 @@ impl SwapChain {
 
         let result = unsafe { self.swap_chain.GetBuffer(id, &uuid, ret) };
 
-        check_hresult!(result, "Failed to retrieve swap chain buffer")?;
+        check_hresult(result, "Failed to retrieve swap chain buffer")?;
 
         Ok(ComPtr::new(ptr))
     }
@@ -251,7 +251,7 @@ impl SwapChain {
         match result {
             0 => Error::Success,
             winerror::DXGI_ERROR_WAS_STILL_DRAWING => Error::WasStillDrawing,
-            hr => check_hresult!(hr, "Failed to present to screen"),
+            hr => check_hresult(hr, "Failed to present to screen"),
         }
     }
 

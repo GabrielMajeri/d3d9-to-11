@@ -111,7 +111,7 @@ impl Device {
 
     /// Retrieves a reference to the immediate device context.
     pub fn device_context(&self) -> &ID3D11DeviceContext {
-        self.device_ctx.as_ref()
+        &self.ctx
     }
 
     /// Creates the default swap chain for this device.
@@ -155,9 +155,9 @@ impl Device {
 
             let result = self
                 .device
-                .CreateRenderTargetView(resource, ptr::null_mut(), &mut ptr);
+                .CreateRenderTargetView(resource, ptr::null(), &mut ptr);
 
-            check_hresult!(result, "Failed to create render target view")?;
+            check_hresult(result, "Failed to create render target view")?;
 
             ComPtr::new(ptr)
         };
@@ -345,8 +345,8 @@ impl Device {
 
             let mut ptr = ptr::null_mut();
 
-            let result = device.CreateTexture2D(&desc, ptr::null_mut(), &mut ptr);
-            check_hresult!(result, "Failed to create 2D texture for render target")?;
+            let result = device.CreateTexture2D(&desc, ptr::null(), &mut ptr);
+            check_hresult(result, "Failed to create 2D texture for render target")?;
 
             ComPtr::new(ptr)
         };

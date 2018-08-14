@@ -123,7 +123,7 @@ impl Surface {
             match result {
                 0 => Ok(mapped),
                 winerror::DXGI_ERROR_WAS_STILL_DRAWING => Err(Error::WasStillDrawing),
-                hr => Err(check_hresult!(hr, "Failed to map surface")),
+                hr => Err(check_hresult(hr, "Failed to map surface")),
             }
         }?;
 
