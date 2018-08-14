@@ -275,18 +275,18 @@ impl SwapChain {
 
         // Retrieve the 2D texture representing this back buffer.
         let buffer = unsafe {
-            let mut ptr: *mut ID3D11Texture2D = ptr::null_mut();
+            let mut ptr = ptr::null_mut();
             let uuid = ID3D11Texture2D::uuidof();
 
             let result = self.swap_chain.GetBuffer(
                 idx,
                 &uuid,
-                &mut ptr as *mut *mut ID3D11Texture2D as *mut _,
+                &mut ptr,
             );
 
             check_hresult!(result, "Failed to retrieve swap chain buffer");
 
-            ComPtr::new(ptr)
+            ComPtr::new(ptr as *mut ID3D11Texture2D)
         };
 
         // Create and return a pointer to the surface.

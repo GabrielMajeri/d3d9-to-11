@@ -77,7 +77,7 @@ impl Surface {
         // Try to map the subresource.
         let ctx = self.parent.device_context();
         let mapped = unsafe {
-            let resource = self.texture.upcast().get_mut();
+            let resource = self.texture.upcast().as_mut();
 
             let mut ty = 0;
 
@@ -127,7 +127,7 @@ impl Surface {
     fn unlock_rect(&self) -> Error {
         let ctx = self.parent.device_context();
 
-        let resource = self.texture.upcast().get_mut();
+        let resource = self.texture.upcast().as_mut();
 
         unsafe {
             ctx.Unmap(resource, self.subresource);

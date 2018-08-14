@@ -99,7 +99,7 @@ impl Device {
 
     /// Retrieves a reference to the immediate device context.
     pub fn device_context(&self) -> &ID3D11DeviceContext {
-        self.device_ctx.get_mut()
+        self.device_ctx.as_ref()
     }
 
     /// Creates the default swap chain for this device.
@@ -191,8 +191,8 @@ impl Device {
         ret: *mut *mut IDirect3DSwapChain9,
     ) -> Error {
         let parent = self_ref(self);
-        let device = self.device.upcast().get_mut();
-        let factory = self.factory.get_mut();
+        let device = self.device.upcast().as_mut();
+        let factory = self.factory.as_mut();
         let pp = check_mut_ref(pp)?;
         let window = self.window;
 

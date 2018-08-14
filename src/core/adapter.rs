@@ -77,7 +77,7 @@ impl Adapter {
             let mut device = ptr::null_mut();
             let result = D3D11CreateDevice(
                 // Create a device for the adapter we own.
-                adapter.get_mut(),
+                adapter.as_mut(),
                 d3dcommon::D3D_DRIVER_TYPE_UNKNOWN,
                 ptr::null_mut(),
                 // No additional flags.

@@ -343,18 +343,20 @@ impl Context {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::mem;
 
     #[test]
     fn context_lifetime() {
-        let ctx = Context::new().expect("Failed to create device");
+        let copy;
+        let original_count;
 
-        let original_count = unsafe { ctx.GetAdapterCount() };
-        assert!(original_count > 0, "No GPUs found on the system.");
+        {
+            let ctx = Context::new().expect("Failed to create context");
 
-        let copy = ctx.clone();
+            original_count = unsafe { ctx.GetAdapterCount() };
+            assert!(original_count > 0, "No GPUs found on the system.");
 
-        mem::drop(ctx);
+            copy = ctx.clone();
+        }
 
         let count = unsafe { copy.GetAdapterCount() };
 

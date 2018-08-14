@@ -36,7 +36,8 @@ impl Resource {
     /// Retrieves a reference to the D3D11 device which owns this resource.
     pub fn device(&self) -> &Device {
         // We know that the device that we were created with was from our own library.
-        unsafe { mem::transmute(self.device.get_mut()) }
+        let dev_ptr = self.device.as_ref() as *const _ as *const Device;
+        unsafe { &*dev_ptr }
     }
 
     /// Retrieves the immediate device context of the parent device.
