@@ -5,7 +5,7 @@ version: 0.1.{build}
 install:
   # Install Rust through rustup
   - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
-  - rustup-init -y --default-toolchain nightly --default-host i686-pc-windows-gnu
+  - rustup-init -y --default-toolchain nightly --default-host i686-pc-windows-msvc
   # Add to path
   - set PATH=%USERPROFILE%/.cargo/bin;%PATH%
   # Ensure we are using the latest version
@@ -16,12 +16,12 @@ install:
   - cargo -vV
 
 build_script:
-  - cargo build
+  - cargo build --target i686-pc-windows-msvc
 
 test_script:
   # Enable Rust logging for our lib
   - set RUST_LOG=d3d9=info
-  - cargo test --all
+  - cargo test --all --target i686-pc-windows-msvc
 
 # Save the built DLL.
 artifacts:
