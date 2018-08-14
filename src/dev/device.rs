@@ -1,9 +1,7 @@
 use std::ptr;
 
 use winapi::{
-    shared::{
-        d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::HWND,
-    },
+    shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::HWND},
     um::{
         d3d11::*,
         unknwnbase::{IUnknown, IUnknownVtbl},
@@ -14,7 +12,7 @@ use com_impl::{implementation, interface};
 use comptr::ComPtr;
 
 use super::{Surface, SurfaceData, SwapChain};
-use crate::core::*;
+use crate::core::{fmt::d3d_format_to_dxgi, msample::d3d9_to_dxgi_samples, *};
 use crate::{Error, Result};
 
 /// Structure representing a logical graphics device.
@@ -110,11 +108,21 @@ impl Device {
                 let height = pp.BackBufferHeight;
                 let fmt = pp.AutoDepthStencilFormat;
                 let discard = pp.Flags & D3DPRESENTFLAG_DISCARD_DEPTHSTENCIL;
+                let ms_ty = 0;
+                let ms_qlt = 0;
+                let shared_handle = 0;
 
                 let mut ptr = ptr::null_mut();
 
                 device.create_depth_stencil_surface(
-                    width, height, fmt, 0, 1, discard, &mut ptr, 0,
+                    width,
+                    height,
+                    fmt,
+                    ms_ty,
+                    ms_qlt,
+                    discard,
+                    &mut ptr,
+                    shared_handle,
                 )?;
 
                 Some(ComPtr::new(ptr))
@@ -382,12 +390,14 @@ impl Device {
 
         // First we need to create a texture we will render to.
         let texture = unsafe {
+            let fmt = d3d_format_to_dxgi(fmt);
+
             let desc = D3D11_TEXTURE2D_DESC {
                 Width: width,
                 Height: height,
                 MipLevels: 1,
                 ArraySize: 1,
-                Format: fmt.to_dxgi(),
+                Format: fmt,
                 SampleDesc: d3d9_to_dxgi_samples(ms_ty, ms_qlt),
                 Usage: D3D11_USAGE_DEFAULT,
                 BindFlags: D3D11_BIND_RENDER_TARGET,
@@ -481,12 +491,14 @@ impl Device {
         }
 
         let texture = unsafe {
+            let fmt = d3d_format_to_dxgi(fmt);
+
             let desc = D3D11_TEXTURE2D_DESC {
                 Width: width,
                 Height: height,
                 MipLevels: 1,
                 ArraySize: 1,
-                Format: fmt.to_dxgi(),
+                Format: fmt,
                 // D/S buffers cannot be multisampled.
                 SampleDesc: d3d9_to_dxgi_samples(1, 0),
                 Usage: D3D11_USAGE_DEFAULT,

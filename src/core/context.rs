@@ -16,8 +16,11 @@ use winapi::{
 
 use com_impl::{implementation, interface};
 
-use super::*;
-use crate::{core::format::D3DFormatExt, dev::Device, Error, Result};
+use super::{
+    fmt::{is_depth_stencil_format, is_display_mode_format},
+    *,
+};
+use crate::{dev::Device, Error, Result};
 
 /// D3D9 interface which stores all application context.
 ///
@@ -177,7 +180,7 @@ impl Context {
         self.check_devty(ty)?;
 
         // We support hardware accel with all valid formats.
-        if adapter_fmt.is_display_mode_format() {
+        if is_display_mode_format(adapter_fmt) {
             Error::Success
         } else {
             Error::NotAvailable
@@ -251,7 +254,7 @@ impl Context {
 
         // We only have to check that the format which was passed in
         // can be used with d/s buffers.
-        if ds_fmt.is_depth_stencil_format() {
+        if is_depth_stencil_format(ds_fmt) {
             Error::Success
         } else {
             Error::NotAvailable

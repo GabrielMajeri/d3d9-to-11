@@ -16,10 +16,10 @@ pub unsafe extern "system" fn Direct3DCreate9(sdk_version: u32) -> Option<ComPtr
 
     // Try to identify which version of the D3D9 the app was built against.
     // This could be used to implement compatibility workarounds if needed.
-    match sdk_version {
+    run_once!(|| match sdk_version {
         32 => info!("D3D9 version 9.0c"),
         _ => warn!("Unknown D3D9 SDK version {}", sdk_version),
-    }
+    });
 
     Context::new().ok()
 }

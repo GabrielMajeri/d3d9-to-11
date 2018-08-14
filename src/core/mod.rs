@@ -3,11 +3,9 @@
 //! This module contains the fundamental building blocks on top of which the rest
 //! of the library is built.
 
-mod format;
-pub use self::format::D3DFormatExt;
+pub mod fmt;
 
-mod msample;
-pub use self::msample::d3d9_to_dxgi_samples;
+pub mod msample;
 
 pub mod str;
 

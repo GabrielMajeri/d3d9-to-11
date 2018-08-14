@@ -12,7 +12,10 @@ use com_impl::{implementation, interface};
 use comptr::ComPtr;
 
 use super::{Device, Resource};
-use crate::{core::*, Error};
+use crate::{
+    core::{fmt::dxgi_format_to_d3d, msample::dxgi_samples_to_d3d9, *},
+    Error,
+};
 
 /// Represents a 2D contiguous array of pixels.
 #[interface(IUnknown, IDirect3DResource9, IDirect3DSurface9)]
@@ -96,8 +99,37 @@ impl Surface {
     }
 
     /// Retrieves a description of this surface.
-    fn get_desc(&self, _surface: *mut D3DSURFACE_DESC) -> Error {
-        unimplemented!()
+    fn get_desc(&self, ret: *mut D3DSURFACE_DESC) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        // D3D11 already stores the information we need.
+        let desc = unsafe {
+            let mut desc = mem::uninitialized();
+            self.texture.GetDesc(&mut desc);
+            desc
+        };
+
+        ret.Width = desc.Width;
+        ret.Height = desc.Height;
+
+        ret.Format = dxgi_format_to_d3d(desc.Format);
+        ret.Type = D3DRTYPE_SURFACE;
+
+        ret.Usage = if desc.BindFlags & D3D11_BIND_RENDER_TARGET != 0 {
+            D3DUSAGE_RENDERTARGET
+        } else {
+            D3DUSAGE_DEPTHSTENCIL
+        };
+
+        // TODO: can we simply return DEFAULT here,
+        // or do we need to actually remember the original pool?
+        ret.Pool = D3DPOOL_DEFAULT;
+
+        let (ms_ty, ms_qlt) = dxgi_samples_to_d3d9(desc.SampleDesc);
+        ret.MultiSampleType = ms_ty;
+        ret.MultiSampleQuality = ms_qlt;
+
+        Error::Success
     }
 
     // -- Memory mapping functions --

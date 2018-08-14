@@ -13,7 +13,10 @@ use winapi::{
 use com_impl::{implementation, interface};
 use comptr::ComPtr;
 
-use crate::{core::*, Error, Result};
+use crate::{
+    core::{fmt::d3d_display_format_to_dxgi, msample::d3d9_to_dxgi_samples, *},
+    Error, Result,
+};
 
 use super::{Device, Surface, SurfaceData};
 
@@ -97,7 +100,7 @@ impl SwapChain {
                     Width: width,
                     Height: height,
                     RefreshRate: refresh_rate,
-                    Format: fmt.to_dxgi_display_format(),
+                    Format: d3d_display_format_to_dxgi(*fmt),
                     ScanlineOrdering: DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
                     Scaling: DXGI_MODE_SCALING_UNSPECIFIED,
                 }

@@ -9,7 +9,11 @@ use winapi::shared::dxgitype::DXGI_MODE_DESC;
 use winapi::shared::windef::HMONITOR;
 use winapi::um::{d3d11::*, d3dcommon};
 
-use crate::{core::*, Error, Result};
+use super::{
+    fmt::{d3d_format_to_dxgi, is_display_mode_format},
+    *,
+};
+use crate::{Error, Result};
 
 /// This class represents a physical graphics adapter (GPU).
 pub struct Adapter {
@@ -171,7 +175,7 @@ impl Adapter {
 
     /// Retrieves the number of display modes which match the requested format.
     pub fn mode_count(&self, fmt: D3DFORMAT) -> u32 {
-        if self.output.is_none() || !fmt.is_display_mode_format() {
+        if self.output.is_none() || !is_display_mode_format(fmt) {
             return 0;
         }
 
@@ -187,7 +191,7 @@ impl Adapter {
 
     /// Retrieves the display mode of a certain index.
     pub fn mode(&self, fmt: D3DFORMAT, index: u32) -> Option<D3DDISPLAYMODE> {
-        if self.output.is_none() || !fmt.is_display_mode_format() {
+        if self.output.is_none() || !is_display_mode_format(fmt) {
             return None;
         }
 
@@ -217,7 +221,7 @@ impl Adapter {
 
     /// Checks if a given format is supported for a specific resource usage.
     pub fn is_format_supported(&self, fmt: D3DFORMAT, rt: D3DRESOURCETYPE, usage: u32) -> bool {
-        let fmt = fmt.to_dxgi();
+        let fmt = d3d_format_to_dxgi(fmt);
 
         let support = unsafe {
             let mut sp = 0;
@@ -252,8 +256,7 @@ impl Adapter {
     /// Checks if we support multisampling for a given format.
     /// Returns the maximum quality level supported for a given format.
     pub fn is_multisampling_supported(&self, fmt: D3DFORMAT, ms: D3DMULTISAMPLE_TYPE) -> u32 {
-        let fmt = fmt.to_dxgi();
-
+        let fmt = d3d_format_to_dxgi(fmt);
         let mut quality = 0;
         unsafe {
             // Even if this fails, quality is initialized to 0.
@@ -408,7 +411,7 @@ impl Adapter {
             }
         }
 
-        let format = fmt.to_dxgi_display_format();
+        let format = d3d_format_to_dxgi(fmt);
         let flags = 0;
 
         // Determine how big the list should be.
