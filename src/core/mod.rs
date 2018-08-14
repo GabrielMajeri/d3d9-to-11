@@ -39,10 +39,7 @@ pub fn check_mut_ref<'a, T>(ptr: *mut T) -> Result<&'a mut T> {
 /// Creates a new heap-allocated COM interface from a Rust structure.
 ///
 /// Unsafe because there is no way of checking if `this` implements the desired interface.
-pub unsafe fn new_com_interface<T, I>(this: T) -> *mut I
-where
-    I: Interface,
-{
+pub unsafe fn new_com_interface<T, I>(this: T) -> *mut I {
     // Danger right here.
     Box::into_raw(Box::new(this)) as *mut _
 }

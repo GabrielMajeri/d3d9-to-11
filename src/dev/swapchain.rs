@@ -48,7 +48,7 @@ impl SwapChain {
         factory: &IDXGIFactory,
         pp: &mut D3DPRESENT_PARAMETERS,
         window: HWND,
-    ) -> Result<*mut IDirect3DSwapChain9> {
+    ) -> Result<ComPtr<Self>> {
         // First we need to set up the description of this swap chain.
         let mut sc_desc = {
             // Fill in the description of the back buffer.
@@ -188,7 +188,7 @@ impl SwapChain {
             sync_interval,
         };
 
-        Ok(unsafe { new_com_interface(swap_chain) })
+        Ok(ComPtr::new(unsafe { new_com_interface(swap_chain) }))
     }
 }
 
@@ -205,7 +205,7 @@ impl Drop for SwapChain {
 #[implementation(IUnknown, IDirect3DSwapChain9)]
 impl SwapChain {
     /// Presents the back buffer to the screen, and moves to the next buffer in the chain.
-    fn present(&self, src: usize, dest: usize, wnd: HWND, dirty: usize, flags: u32) -> Error {
+    pub fn present(&self, src: usize, dest: usize, wnd: HWND, dirty: usize, flags: u32) -> Error {
         if src != 0 || dest != 0 || dirty != 0 {
             // Check if the app is even allowed to partially present.
             if self.pp.SwapEffect != D3DSWAPEFFECT_COPY {
@@ -245,14 +245,14 @@ impl SwapChain {
     }
 
     /// Copies data from the front buffer into a surface.
-    fn get_front_buffer_data(_fb: *mut IDirect3DSurface9) -> Error {
+    pub fn get_front_buffer_data(&self, _fb: *mut IDirect3DSurface9) -> Error {
         // TODO: we need to get the front buffer, then copy its data into the passed-in surface.
         // We also need to ensure the format is converted to a format D3D9 supports.
         unimplemented!()
     }
 
     /// Retrieves the the back buffer's surface.
-    fn get_back_buffer(
+    pub fn get_back_buffer(
         &self,
         idx: u32,
         ty: D3DBACKBUFFER_TYPE,
@@ -293,7 +293,7 @@ impl SwapChain {
     }
 
     /// Gets the status of the current scanline the rasterizer is processing.
-    fn get_raster_status(&self, rs: *mut D3DRASTER_STATUS) -> Error {
+    pub fn get_raster_status(&self, rs: *mut D3DRASTER_STATUS) -> Error {
         check_mut_ref(rs)?;
 
         // We reported in the device caps that we don't support this.
@@ -301,7 +301,7 @@ impl SwapChain {
     }
 
     /// Retrieves the swap chain's display mode.
-    fn get_display_mode(&self, dm: *mut D3DDISPLAYMODE) -> Error {
+    pub fn get_display_mode(&self, dm: *mut D3DDISPLAYMODE) -> Error {
         let dm = check_mut_ref(dm)?;
         let pp = &self.pp;
 
@@ -316,14 +316,14 @@ impl SwapChain {
     }
 
     /// Gets the device which created this object.
-    fn get_device(&self, device: *mut *mut IDirect3DDevice9) -> Error {
+    pub fn get_device(&self, device: *mut *mut IDirect3DDevice9) -> Error {
         let device = check_mut_ref(device)?;
         *device = self.parent.clone().into();
         Error::Success
     }
 
     /// Retrieves the presentation parameters this swap chain was created with.
-    fn get_present_parameters(&self, pp: *mut D3DPRESENT_PARAMETERS) -> Error {
+    pub fn get_present_parameters(&self, pp: *mut D3DPRESENT_PARAMETERS) -> Error {
         let pp = check_mut_ref(pp)?;
         *pp = self.pp;
         Error::Success

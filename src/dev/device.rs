@@ -38,7 +38,7 @@ pub struct Device {
     window: HWND,
     // The implicit swap chain for the back buffer.
     // There is one for each device in an adapter group.
-    swap_chains: Vec<ComPtr<IDirect3DSwapChain9>>,
+    swap_chains: Vec<ComPtr<SwapChain>>,
 }
 
 impl Device {
@@ -126,11 +126,10 @@ impl Device {
     }
 
     /// Tries to retrieve a swap chain based on the index.
-    fn check_swap_chain(&self, sc: u32) -> Result<ComPtr<IDirect3DSwapChain9>> {
+    fn check_swap_chain(&self, sc: u32) -> Result<&ComPtr<SwapChain>> {
         self.swap_chains
             .get(sc as usize)
             .ok_or(Error::InvalidCall)
-            .map(|sc| sc.clone())
     }
 }
 
@@ -188,7 +187,7 @@ impl Device {
     fn create_additional_swap_chain(
         &mut self,
         pp: *mut D3DPRESENT_PARAMETERS,
-        ret: *mut *mut IDirect3DSwapChain9,
+        ret: *mut *mut SwapChain,
     ) -> Error {
         let parent = self_ref(self);
         let device = self.device.upcast().as_mut();
@@ -204,11 +203,11 @@ impl Device {
     }
 
     /// Returns an implicit swap chain.
-    fn get_swap_chain(&self, sc: u32, ret: *mut *mut IDirect3DSwapChain9) -> Error {
+    fn get_swap_chain(&self, sc: u32, ret: *mut *mut SwapChain) -> Error {
         let sc = self.check_swap_chain(sc)?;
         let ret = check_mut_ref(ret)?;
 
-        *ret = sc.into();
+        *ret = sc.clone().into();
 
         Error::Success
     }
@@ -217,6 +216,31 @@ impl Device {
     fn get_number_of_swap_chains(&self) -> u32 {
         // TODO: to have more than one implicit SC, we need multi-GPU support.
         1
+    }
+
+    // The functions below all operate on the implicit swap chains.
+
+    fn present(&self, src: usize, dest: usize, wnd: HWND, dirty: usize) -> Error {
+        for sc in &self.swap_chains {
+            sc.present(src, dest, wnd, dirty, 0)?;
+        }
+        Error::Success
+    }
+
+    fn get_front_buffer_data(&self, sc: u32, fb: *mut IDirect3DSurface9) -> Error {
+        self.check_swap_chain(sc)?.get_front_buffer_data(fb)
+    }
+
+    fn get_back_buffer(&self, sc: u32, bi: u32, ty: D3DBACKBUFFER_TYPE, ret: *mut *mut IDirect3DSurface9) -> Error {
+        self.check_swap_chain(sc)?.get_back_buffer(bi, ty, ret)
+    }
+
+    fn get_raster_status(&self, sc: u32, rs: *mut D3DRASTER_STATUS) -> Error {
+        self.check_swap_chain(sc)?.get_raster_status(rs)
+    }
+
+    fn get_display_mode(&self, sc: u32, dm: *mut D3DDISPLAYMODE) -> Error {
+        self.check_swap_chain(sc)?.get_display_mode(dm)
     }
 
     // Function stubs:
@@ -300,9 +324,6 @@ impl Device {
     fn end_state_block() {
         unimplemented!()
     }
-    fn get_back_buffer() {
-        unimplemented!()
-    }
     fn get_clip_plane() {
         unimplemented!()
     }
@@ -313,12 +334,6 @@ impl Device {
         unimplemented!()
     }
     fn get_depth_stencil_surface() {
-        unimplemented!()
-    }
-    fn get_display_mode() {
-        unimplemented!()
-    }
-    fn get_front_buffer_data() {
         unimplemented!()
     }
     fn get_f_v_f() {
@@ -355,9 +370,6 @@ impl Device {
         unimplemented!()
     }
     fn get_pixel_shader_constant_i() {
-        unimplemented!()
-    }
-    fn get_raster_status() {
         unimplemented!()
     }
     fn get_render_state() {
@@ -415,9 +427,6 @@ impl Device {
         unimplemented!()
     }
     fn multiply_transform() {
-        unimplemented!()
-    }
-    fn present() {
         unimplemented!()
     }
     fn process_vertices() {
