@@ -42,6 +42,7 @@ pub fn is_depth_stencil_format(fmt: D3DFORMAT) -> bool {
     }
 }
 
+// This macro is used to generate bi-directional mapping between D3D and DXGI formats.
 macro_rules! format_conv {
     ($($a:path => $b:path,)*) => {
         /// Converts a general resource format to a DXGI format.
@@ -50,7 +51,7 @@ macro_rules! format_conv {
                 $($a => $b,)*
 
                 // Mixed formats: not sure how to map these to DXGI
-                D3DFMT_L6V5U5 | D3DFMT_X8L8V8U8 | D3DFMT_A2W10V10U10 => {
+                D3DFMT_L6V5U5 | D3DFMT_X8L8V8U8 | D3DFMT_A2W10V10U10 | D3DFMT_Q16W16V16U16 => {
                     run_once!(|| warn!("Mixed sign formats are not supported"));
 
                     DXGI_FORMAT_UNKNOWN
@@ -72,7 +73,12 @@ macro_rules! format_conv {
     }
 }
 
+// Based upon the following reference:
+// https://docs.microsoft.com/en-us/windows/desktop/direct3d10/d3d10-graphics-programming-guide-resources-legacy-formats
 format_conv! {
+    // TODO: some formats have no support in modern DXGI.
+    // We might still be able to approximate them with some other formats though.
+
     // 8 bit formats
     D3DFMT_R3G3B2 => DXGI_FORMAT_R8_UNORM,
     D3DFMT_A8 => DXGI_FORMAT_A8_UNORM,
@@ -93,8 +99,7 @@ format_conv! {
     // 32 bit formats
     D3DFMT_X8R8G8B8 => DXGI_FORMAT_B8G8R8X8_UNORM,
     D3DFMT_A8R8G8B8 => DXGI_FORMAT_B8G8R8A8_UNORM,
-    D3DFMT_A8B8G8R8 => DXGI_FORMAT_B8G8R8A8_UNORM,
-    D3DFMT_X8B8G8R8 => DXGI_FORMAT_B8G8R8X8_UNORM,
+    D3DFMT_A8B8G8R8 => DXGI_FORMAT_R8G8B8A8_UNORM,
     D3DFMT_G16R16 => DXGI_FORMAT_R16G16_UNORM,
 
     // HDR formats
@@ -105,15 +110,13 @@ format_conv! {
     D3DFMT_S8_LOCKABLE => DXGI_FORMAT_R8_UNORM,
     D3DFMT_D16_LOCKABLE => DXGI_FORMAT_D16_UNORM,
     D3DFMT_D16 => DXGI_FORMAT_D16_UNORM,
-    D3DFMT_D15S1 => DXGI_FORMAT_D16_UNORM,
+    D3DFMT_D15S1 => DXGI_FORMAT_D24_UNORM_S8_UINT,
     D3DFMT_D24S8 => DXGI_FORMAT_D24_UNORM_S8_UINT,
     D3DFMT_D24FS8 => DXGI_FORMAT_D24_UNORM_S8_UINT,
     D3DFMT_D24X8 => DXGI_FORMAT_D24_UNORM_S8_UINT,
     D3DFMT_D24X4S4 => DXGI_FORMAT_D24_UNORM_S8_UINT,
     D3DFMT_D32 => DXGI_FORMAT_D32_FLOAT,
     D3DFMT_D32F_LOCKABLE => DXGI_FORMAT_D32_FLOAT,
-    D3DFMT_D32_LOCKABLE => DXGI_FORMAT_D32_FLOAT,
-
 
     // Compressed formats
     D3DFMT_DXT1 => DXGI_FORMAT_BC1_UNORM,
@@ -123,19 +126,18 @@ format_conv! {
     D3DFMT_DXT5 => DXGI_FORMAT_BC5_UNORM,
 
     // Special formats: mostly used for hardware video.
-    // TODO: Not sure what these map to: D3DFMT_YUY2, D3DFMT_UYVY
-    D3DFMT_R8G8_B8G8 => DXGI_FORMAT_R8G8_B8G8_UNORM,
-    D3DFMT_G8R8_G8B8 => DXGI_FORMAT_G8R8_G8B8_UNORM,
+    D3DFMT_R8G8_B8G8 => DXGI_FORMAT_G8R8_G8B8_UNORM,
+    D3DFMT_G8R8_G8B8 => DXGI_FORMAT_R8G8_B8G8_UNORM,
 
     // Signed formats
-    D3DFMT_V8U8 => DXGI_FORMAT_R8G8_SINT,
-    D3DFMT_Q8W8V8U8 => DXGI_FORMAT_R8G8B8A8_SINT,
-    D3DFMT_V16U16 => DXGI_FORMAT_R16G16_SINT,
+    D3DFMT_V8U8 => DXGI_FORMAT_R8G8_SNORM,
+    D3DFMT_Q8W8V8U8 => DXGI_FORMAT_R8G8B8A8_SNORM,
+    D3DFMT_V16U16 => DXGI_FORMAT_R16G16_SNORM,
 
     // Buffer formats
     D3DFMT_R16F => DXGI_FORMAT_R16_FLOAT,
     D3DFMT_G16R16F => DXGI_FORMAT_R16G16_FLOAT,
-    D3DFMT_A16B16G16R16 => DXGI_FORMAT_R16G16B16A16_UINT,
+    D3DFMT_A16B16G16R16 => DXGI_FORMAT_R16G16B16A16_UNORM,
     D3DFMT_A16B16G16R16F => DXGI_FORMAT_R16G16B16A16_FLOAT,
     D3DFMT_R32F => DXGI_FORMAT_R32_FLOAT,
     D3DFMT_G32R32F => DXGI_FORMAT_R32G32_FLOAT,

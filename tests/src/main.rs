@@ -25,6 +25,7 @@ fn main() {
 
     let hwnd = window.get_hwnd() as *mut _;
     let device = device::create_device(&ctx, hwnd);
+    device::run_tests(&device);
 
     const MAX_TIME: Duration = Duration::from_secs(5);
     let start = Instant::now();
@@ -70,4 +71,6 @@ fn main() {
     }
 
     println!("D3D9 tests ran successfuly");
+
+    std::process::exit(0);
 }
