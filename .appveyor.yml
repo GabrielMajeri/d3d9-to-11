@@ -18,11 +18,6 @@ install:
 build_script:
   - cargo build --release --target i686-pc-windows-msvc
 
-test_script:
-  # Enable logging for our lib
-  - set RUST_LOG=d3d9=info
-  - cargo run --package d3d9-tests --release --target i686-pc-windows-msvc
-
 # Save the built DLL.
 artifacts:
 - path: target/release/d3d9.dll
