@@ -11,7 +11,7 @@ use winapi::{
 use com_impl::{implementation, interface};
 use comptr::ComPtr;
 
-use super::{Device, Resource};
+use super::{Device, resource::Resource};
 use crate::{
     core::{fmt::dxgi_format_to_d3d, msample::dxgi_samples_to_d3d9, *},
     Error,
@@ -20,7 +20,7 @@ use crate::{
 /// Represents a 2D contiguous array of pixels.
 #[interface(IUnknown, IDirect3DResource9, IDirect3DSurface9)]
 pub struct Surface {
-    parent: Resource,
+    resource: Resource,
     // Reference to the texture we own, or our parent texture.
     texture: ComPtr<ID3D11Texture2D>,
     // An index representing the sub-resource we are owning.
@@ -51,17 +51,14 @@ impl Surface {
         subresource: u32,
         data: SurfaceData,
     ) -> ComPtr<Self> {
-        let mut surface = Self {
+        let surface = Self {
             __vtable: Self::create_vtable(),
             __refs: Self::create_refs(),
-            parent: Resource::new(device, D3DRTYPE_SURFACE),
+            resource: Resource::new(device, D3DRTYPE_SURFACE),
             texture,
             subresource,
             data,
         };
-
-        // Fix up the vtables.
-        surface.__vtable.parent.parent = Self::__create_IUnknownVtbl();
 
         unsafe { new_com_interface(surface) }
     }
@@ -83,13 +80,9 @@ impl Surface {
             None
         }
     }
-
-    /// Inherit Resource's implementation.
-    #[allow(non_snake_case)]
-    fn __create_IDirect3DResource9Vtbl() -> IDirect3DResource9Vtbl {
-        Resource::__create_IDirect3DResource9Vtbl()
-    }
 }
+
+impl_resource!(Surface);
 
 #[implementation(IDirect3DResource9, IDirect3DSurface9)]
 impl Surface {
@@ -140,7 +133,7 @@ impl Surface {
         // TODO: maybe track dirty regions for efficiency.
 
         // Try to map the subresource.
-        let ctx = self.parent.device_context();
+        let ctx = self.device_context();
         let mapped = unsafe {
             let resource = self.texture.upcast().as_mut();
 
@@ -190,7 +183,7 @@ impl Surface {
 
     /// Unlocks the locked rectangle of memory.
     fn unlock_rect(&self) -> Error {
-        let ctx = self.parent.device_context();
+        let ctx = self.device_context();
 
         let resource = self.texture.upcast().as_mut();
 

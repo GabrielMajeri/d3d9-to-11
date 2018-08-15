@@ -66,6 +66,15 @@ fn check_auto_rt_ds(dev: &IDirect3DDevice9) {
         ComPtr::new(ptr)
     };
 
+    let device = unsafe {
+        let mut ptr = ptr::null_mut();
+        let result = rt.GetDevice(&mut ptr);
+        assert_eq!(result, 0);
+        ComPtr::new(ptr)
+    };
+
+    assert_eq!(device.as_ref() as *const _, dev as *const _);
+
     let rt_desc = surface_get_desc(&rt);
     assert_eq!(rt_desc.Usage, D3DUSAGE_RENDERTARGET);
 

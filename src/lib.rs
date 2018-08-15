@@ -1,9 +1,9 @@
 //! Direct3D 9 to Direct3D 11 / DXGI converter.
 
-#![feature(rust_2018_preview)]
 #![feature(const_fn)]
-#![feature(try_trait)]
 #![feature(integer_atomics)]
+#![feature(rust_2018_preview)]
+#![feature(try_trait)]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy))]
 #![cfg_attr(
     feature = "cargo-clippy",

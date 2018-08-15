@@ -73,7 +73,7 @@ impl Device {
                 .ok_or(Error::InvalidCall)?
         };
 
-        let mut device = Self {
+        let device = Self {
             __vtable: Self::create_vtable(),
             __refs: Self::create_refs(),
             parent,
@@ -87,6 +87,8 @@ impl Device {
             render_targets: Vec::new(),
             depth_stencil: None,
         };
+
+        let mut device: ComPtr<Device> = unsafe { new_com_interface(device) };
 
         // Create the default swap chain for the adapter.
         device.create_default_swap_chain(pp)?;
@@ -126,7 +128,7 @@ impl Device {
         // Now that we have an initial RT / DS buffer, we need to set D3D11's state.
         device.update_render_targets();
 
-        Ok(unsafe { new_com_interface(device) })
+        Ok(device)
     }
 
     /// Retrieves the adapter of this device.
