@@ -563,6 +563,8 @@ impl Device {
     }
 
     // -- Texture creation functions --
+
+    /// Creates a new texture from the given parameters.
     fn create_texture(
         &self,
         width: u32,
@@ -580,12 +582,6 @@ impl Device {
             unimplemented!("Texture usage flags not yet implemented: {:b}", usage);
         }
 
-        if pool != D3DPOOL_DEFAULT {
-            error!("Tried to create resource in pool {}", pool);
-            error!("Only the default pool is supported for now");
-            // TODO: handle the different pool types.
-        }
-
         if shared_handle != 0 {
             error!("Shared resources are not supported");
             return Error::InvalidCall;
@@ -596,6 +592,27 @@ impl Device {
         let texture = unsafe {
             let fmt = d3d_format_to_dxgi(fmt);
 
+            let mut usage = D3D11_USAGE_DEFAULT;
+            let mut cpu_flags = 0;
+
+            match pool {
+                // Default resources are placed in VRAM.
+                D3DPOOL_DEFAULT => (),
+                // Managed resources are placed in VRAM if possible, and are backed by system RAM.
+                D3DPOOL_MANAGED => {
+                    cpu_flags |= D3D11_CPU_ACCESS_WRITE | D3D11_CPU_ACCESS_READ;
+                }
+                // These resources are stored in RAM, can be used to upload
+                // dynamic data from the CPU to the GPU.
+                D3DPOOL_SYSTEMMEM => {
+                    // TODO: We need to use staging because D3D9 might try to read the resource,
+                    // but is it somehow possible to avoid doing so?
+                    usage = D3D11_USAGE_STAGING;
+                    cpu_flags |= D3D11_CPU_ACCESS_WRITE | D3D11_CPU_ACCESS_READ;
+                }
+                _ => error!("Unsupported memory pool: {}", pool),
+            }
+
             let desc = D3D11_TEXTURE2D_DESC {
                 Width: width,
                 Height: height,
@@ -604,9 +621,9 @@ impl Device {
                 Format: fmt,
                 // D3D9 does not have multisampled textures.
                 SampleDesc: d3d9_to_dxgi_samples(0, 0),
-                Usage: D3D11_USAGE_DEFAULT,
-                BindFlags: 0,
-                CPUAccessFlags: 0,
+                Usage: usage,
+                BindFlags: D3D11_BIND_SHADER_RESOURCE,
+                CPUAccessFlags: cpu_flags,
                 MiscFlags: 0,
             };
 
@@ -618,7 +635,19 @@ impl Device {
             ComPtr::new(ptr)
         };
 
-        *ret = Texture::new(self, texture).into();
+        let srv = unsafe {
+            let resource = texture.upcast().as_mut();
+            let mut ptr = ptr::null_mut();
+
+            let result = self
+                .device
+                .CreateShaderResourceView(resource, ptr::null_mut(), &mut ptr);
+            check_hresult(result, "Failed to create shader resource view")?;
+
+            ComPtr::new(ptr)
+        };
+
+        *ret = Texture::new(self, texture, levels, srv).into();
 
         Error::Success
     }

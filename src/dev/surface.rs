@@ -1,17 +1,14 @@
 use std::mem;
 
 use winapi::{
-    shared::{d3d9::*, d3d9types::*, windef::RECT, winerror},
-    um::{
-        d3d11::*,
-        unknwnbase::IUnknownVtbl,
-    },
+    shared::{d3d9::*, d3d9types::*, guiddef::GUID, windef::RECT},
+    um::{d3d11::*, unknwnbase::IUnknownVtbl},
 };
 
 use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
 
-use super::{Device, resource::Resource};
+use super::{resource::Resource, Device, Texture};
 use crate::{
     core::{fmt::dxgi_format_to_d3d, msample::dxgi_samples_to_d3d9, *},
     Error,
@@ -41,6 +38,8 @@ pub enum SurfaceData {
     RenderTarget(ComPtr<ID3D11RenderTargetView>),
     /// This surface is owning a depth / stencil buffer.
     DepthStencil(ComPtr<ID3D11DepthStencilView>),
+    /// This surface is a mip level of a bigger 2D texture.
+    SubTexture(*const Texture),
 }
 
 impl Surface {
@@ -63,6 +62,12 @@ impl Surface {
         unsafe { new_com_interface(surface) }
     }
 
+    /// Retrieves a reference to the subresource this surface represents.
+    pub fn subresource(&self) -> (&mut ID3D11Resource, u32) {
+        let resource = self.texture.upcast().as_mut();
+        (resource, self.subresource)
+    }
+
     /// If this surface is a render target, retrieves the associated RT view.
     pub fn render_target_view(&self) -> Option<&mut ID3D11RenderTargetView> {
         if let SurfaceData::RenderTarget(ref view) = self.data {
@@ -80,6 +85,15 @@ impl Surface {
             None
         }
     }
+
+    /// If this surface is a mip level of a texture, retrieves a reference to the texture.
+    pub fn subtexture(&self) -> Option<&Texture> {
+        if let SurfaceData::SubTexture(texture) = self.data {
+            Some(unsafe { &*texture })
+        } else {
+            None
+        }
+    }
 }
 
 impl_resource!(Surface);
@@ -87,12 +101,20 @@ impl_resource!(Surface);
 #[implementation(IDirect3DResource9, IDirect3DSurface9)]
 impl Surface {
     /// Gets the container of this resource.
-    fn get_container() {
-        unimplemented!()
+    fn get_container(&self, _riid: &GUID, ret: *mut usize) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        *ret = if let SurfaceData::SubTexture(texture) = self.data {
+            com_ref(texture) as usize
+        } else {
+            com_ref(self.device()) as usize
+        };
+
+        Error::Success
     }
 
     /// Retrieves a description of this surface.
-    fn get_desc(&self, ret: *mut D3DSURFACE_DESC) -> Error {
+    pub fn get_desc(&self, ret: *mut D3DSURFACE_DESC) -> Error {
         let ret = check_mut_ref(ret)?;
 
         // D3D11 already stores the information we need.
@@ -127,71 +149,19 @@ impl Surface {
 
     // -- Memory mapping functions --
 
-    /// Locks a rectangular array of pixels and maps their memory.
-    fn lock_rect(&mut self, ret: *mut D3DLOCKED_RECT, _r: *const RECT, flags: u32) -> Error {
-        let ret = check_mut_ref(ret)?;
-        // TODO: maybe track dirty regions for efficiency.
-
-        // Try to map the subresource.
-        let ctx = self.device_context();
-        let mapped = unsafe {
-            let resource = self.texture.upcast().as_mut();
-
-            let mut ty = 0;
-
-            if flags & D3DLOCK_READONLY != 0 {
-                ty |= D3D11_MAP_READ;
-            } else {
-                ty |= D3D11_MAP_READ_WRITE;
-            }
-
-            // Note: we do not validate that the texture was created
-            // with dynamic usage, since D3D11 will validate that for us.
-            if flags & D3DLOCK_DISCARD != 0 {
-                ty |= D3D11_MAP_WRITE_DISCARD;
-            }
-
-            if flags & D3DLOCK_NOOVERWRITE != 0 {
-                ty |= D3D11_MAP_WRITE_NO_OVERWRITE;
-            }
-
-            let mut fl = 0;
-
-            if flags & D3DLOCK_DONOTWAIT != 0 {
-                fl |= D3D11_MAP_FLAG_DO_NOT_WAIT;
-            }
-
-            let mut mapped = mem::uninitialized();
-
-            let result = ctx.Map(resource, ty, fl, self.subresource, &mut mapped);
-
-            match result {
-                0 => Ok(mapped),
-                winerror::DXGI_ERROR_WAS_STILL_DRAWING => Err(Error::WasStillDrawing),
-                hr => Err(check_hresult(hr, "Failed to map surface")),
-            }
-        }?;
-
-        // TODO: we need special handling for pitch with DXT texture formats.
-        *ret = D3DLOCKED_RECT {
-            Pitch: mapped.RowPitch as i32,
-            pBits: mapped.pData,
-        };
-
-        Error::Success
+    fn lock_rect(&mut self, ret: *mut D3DLOCKED_RECT, r: *const RECT, flags: u32) -> Error {
+        self.subtexture()
+            .map(|tex| tex.lock_rect(self.subresource, ret, r, flags))
+            .ok_or_else(|| {
+                error!("Memory mapping is only implemented for (sub)textures");
+                Error::InvalidCall
+            })?
     }
 
-    /// Unlocks the locked rectangle of memory.
     fn unlock_rect(&self) -> Error {
-        let ctx = self.device_context();
-
-        let resource = self.texture.upcast().as_mut();
-
-        unsafe {
-            ctx.Unmap(resource, self.subresource);
-        }
-
-        Error::Success
+        self.subtexture()
+            .map(|tex| tex.unlock_rect(self.subresource))
+            .ok_or(Error::InvalidCall)?
     }
 
     // -- GDI interop functions --
