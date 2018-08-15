@@ -21,7 +21,7 @@ build_script:
 test_script:
   # Enable logging for our lib
   - set RUST_LOG=d3d9=info
-  - cargo run --package d3d9-tests --target i686-pc-windows-msvc
+  - cargo run --package d3d9-tests --release --target i686-pc-windows-msvc
 
 # Save the built DLL.
 artifacts:
