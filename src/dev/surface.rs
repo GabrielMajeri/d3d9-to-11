@@ -46,7 +46,7 @@ pub enum SurfaceData {
 impl Surface {
     /// Creates a new surface from a D3D11 2D texture, and possibly some extra data.
     pub fn new(
-        device: ComPtr<Device>,
+        device: *const Device,
         texture: ComPtr<ID3D11Texture2D>,
         subresource: u32,
         data: SurfaceData,

@@ -19,14 +19,12 @@ use crate::{Error, Result};
 #[interface(IUnknown, IDirect3DDevice9)]
 pub struct Device {
     // Interface which created this device.
-    parent: ComPtr<Context>,
+    parent: *const Context,
     // The adapter this device represents.
     //
     // Since D3D11 is thread-safe, we allow multiple logical devices
     // to share the same adapter.
-    //
-    // Since we own a handle to the parent, the ref is static.
-    adapter: &'static Adapter,
+    adapter: *const Adapter,
     // The equivalent interface from D3D11.
     device: ComPtr<ID3D11Device>,
     // The context in which commands are run.
@@ -50,16 +48,12 @@ pub struct Device {
 impl Device {
     /// Creates a new device.
     pub fn new(
-        parent: ComPtr<Context>,
+        parent: &Context,
         adapter: &Adapter,
         cp: D3DDEVICE_CREATION_PARAMETERS,
         pp: &mut D3DPRESENT_PARAMETERS,
         factory: ComPtr<IDXGIFactory>,
     ) -> Result<ComPtr<Device>> {
-        // Need to work around the lifetime system,
-        // Rust cannot know we share ownership of the device.
-        let adapter = unsafe { &*(adapter as *const Adapter) };
-
         let device = adapter.device();
         let ctx = unsafe {
             let mut ptr = ptr::null_mut();
@@ -135,6 +129,11 @@ impl Device {
         Ok(unsafe { new_com_interface(device) })
     }
 
+    /// Retrieves the adapter of this device.
+    pub fn adapter(&self) -> &Adapter {
+        unsafe { &*self.adapter }
+    }
+
     /// Retrieves a reference to the immediate device context.
     pub fn device_context(&self) -> &ID3D11DeviceContext {
         &self.ctx
@@ -170,7 +169,7 @@ impl Device {
 
     /// Helper function for creating render targets.
     fn create_render_target_helper(
-        &mut self,
+        &self,
         texture: ComPtr<ID3D11Texture2D>,
     ) -> Result<ComPtr<Surface>> {
         // Create a render target view into the texture.
@@ -188,9 +187,8 @@ impl Device {
             ComPtr::new(ptr)
         };
 
-        let parent = ComPtr::new(self).clone();
         let data = SurfaceData::RenderTarget(rt_view);
-        let surface = Surface::new(parent, texture, 0, data);
+        let surface = Surface::new(self, texture, 0, data);
 
         Ok(surface)
     }
@@ -257,7 +255,7 @@ impl Device {
 
     /// Determines how much graphics memory is available.
     fn get_available_texture_mem(&self) -> u32 {
-        self.adapter.available_memory()
+        self.adapter().available_memory()
     }
 
     /// Asks the driver to evict all managed resources from VRAM.
@@ -272,7 +270,7 @@ impl Device {
     fn get_direct_3_d(&self, ptr: *mut *mut Context) -> Error {
         let ptr = check_mut_ref(ptr)?;
 
-        *ptr = self.parent.clone().into();
+        *ptr = com_ref(self.parent);
 
         Error::Success
     }
@@ -281,7 +279,7 @@ impl Device {
     fn get_device_caps(&self, caps: *mut D3DCAPS9) -> Error {
         let caps = check_mut_ref(caps)?;
 
-        *caps = self.adapter.caps();
+        *caps = self.adapter().caps();
 
         Error::Success
     }
@@ -301,7 +299,6 @@ impl Device {
         pp: *mut D3DPRESENT_PARAMETERS,
         ret: *mut *mut SwapChain,
     ) -> Error {
-        let parent = ComPtr::new(self).clone();
         let device = self.device.upcast().as_mut();
         let factory = self.factory.as_mut();
         let pp = check_mut_ref(pp)?;
@@ -309,7 +306,7 @@ impl Device {
 
         let ret = check_mut_ref(ret)?;
 
-        *ret = SwapChain::new(parent, device, factory, pp, window)?.into();
+        *ret = SwapChain::new(self, device, factory, pp, window)?.into();
 
         Error::Success
     }
@@ -469,7 +466,7 @@ impl Device {
 
     /// Creates a new depth / stencil buffer.
     fn create_depth_stencil_surface(
-        &mut self,
+        &self,
         width: u32,
         height: u32,
         fmt: D3DFORMAT,
@@ -528,10 +525,9 @@ impl Device {
             ComPtr::new(ptr)
         };
 
-        let parent = ComPtr::new(self).clone();
         let data = SurfaceData::DepthStencil(ds_view);
 
-        *ret = Surface::new(parent, texture, 0, data).into();
+        *ret = Surface::new(self, texture, 0, data).into();
 
         Error::Success
     }

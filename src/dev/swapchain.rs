@@ -29,7 +29,7 @@ use super::{Device, Surface, SurfaceData};
 #[interface(IUnknown, IDirect3DSwapChain9)]
 pub struct SwapChain {
     // Parent device of this interface.
-    parent: ComPtr<Device>,
+    parent: *const Device,
     // The equivalent DXGI interface.
     swap_chain: ComPtr<IDXGISwapChain>,
     // Store these for retrieving them later.
@@ -43,7 +43,7 @@ pub struct SwapChain {
 impl SwapChain {
     /// Creates a new swap chain with the given parameters, which presents into a window.
     pub fn new(
-        parent: ComPtr<Device>,
+        parent: &Device,
         device: &mut IUnknown,
         factory: &IDXGIFactory,
         pp: &mut D3DPRESENT_PARAMETERS,
@@ -285,7 +285,7 @@ impl SwapChain {
         let buffer = self.buffer(idx)?;
 
         // Create and return a pointer to the surface.
-        *surf = Surface::new(self.parent.clone(), buffer, 0, SurfaceData::None).into();
+        *surf = Surface::new(self.parent, buffer, 0, SurfaceData::None).into();
 
         Error::Success
     }
@@ -316,7 +316,7 @@ impl SwapChain {
     /// Gets the device which created this object.
     pub fn get_device(&self, device: *mut *mut Device) -> Error {
         let device = check_mut_ref(device)?;
-        *device = self.parent.clone().into();
+        *device = com_ref(self.parent);
         Error::Success
     }
 

@@ -57,3 +57,14 @@ pub unsafe fn new_com_interface<T, I>(this: T) -> ComPtr<I> {
     // Danger right here.
     ComPtr::new(Box::into_raw(Box::new(this)) as *mut _)
 }
+
+/// Creates a new reference to a COM interface.
+pub fn com_ref<T>(iface: *const T) -> *mut T {
+    let unknwn = iface as *const winapi::um::unknwnbase::IUnknown;
+
+    unsafe {
+        (*unknwn).AddRef();
+    }
+
+    iface as *mut _
+}

@@ -25,7 +25,6 @@ use crate::{dev::Device, Error, Result};
 /// D3D9 interface which stores all application context.
 ///
 /// Similar in role to a DXGI factory.
-
 #[interface(IUnknown, IDirect3D9)]
 pub struct Context {
     factory: ComPtr<dxgi::IDXGIFactory>,
@@ -119,16 +118,16 @@ impl Context {
     }
 
     /// Returns the number of display modes with a certain format an adapter supports.
-    fn get_adapter_mode_count(&mut self, adapter: u32, fmt: D3DFORMAT) -> u32 {
+    fn get_adapter_mode_count(&self, adapter: u32, fmt: D3DFORMAT) -> u32 {
         self.adapters
-            .get_mut(adapter as usize)
+            .get(adapter as usize)
             .map(|adapter| adapter.mode_count(fmt))
             .unwrap_or_default()
     }
 
     /// Retrieves the list of display modes.
     fn enum_adapter_modes(
-        &mut self,
+        &self,
         adapter: u32,
         fmt: D3DFORMAT,
         i: u32,
@@ -298,7 +297,7 @@ impl Context {
 
     /// Creates a logical device from an adapter.
     fn create_device(
-        &mut self,
+        &self,
         adapter: u32,
         ty: D3DDEVTYPE,
         focus: HWND,
@@ -314,9 +313,6 @@ impl Context {
             warn!("Application requested the creation of a multi-GPU logical device");
         }
 
-        // The device will need to hold a strong reference back to this interface.
-        let parent = ComPtr::new(self).clone();
-
         // This struct stores the original device creation parameters.
         let cp = D3DDEVICE_CREATION_PARAMETERS {
             AdapterOrdinal: adapter,
@@ -331,7 +327,7 @@ impl Context {
 
         // Create the actual device.
         *ret = crate::Device::new(
-            parent,
+            self,
             self.check_adapter(adapter)?,
             cp,
             pp,

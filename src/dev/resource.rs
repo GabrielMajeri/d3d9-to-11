@@ -6,15 +6,14 @@ use winapi::{
 };
 
 use com_impl::implementation;
-use comptr::ComPtr;
 
 use super::Device;
 use crate::{core::*, Error};
 
 /// Structure used as the base for all the D3D9 device resources.
 pub struct Resource {
-    // Need to hold a strong reference back to the parent device.
-    device: ComPtr<Device>,
+    // Need to hold a reference back to the parent device.
+    device: *const Device,
     // Priority of this resource.
     // Higher value indicates this resource should be evicted last from VRAM.
     priority: u32,
@@ -25,7 +24,7 @@ pub struct Resource {
 impl Resource {
     /// Creates a new resource.
     /// Should only be called by structures which inherit from the IDirect3DResource9 interface.
-    pub fn new(device: ComPtr<Device>, ty: D3DRESOURCETYPE) -> Self {
+    pub fn new(device: *const Device, ty: D3DRESOURCETYPE) -> Self {
         Self {
             device,
             priority: 0,
@@ -33,9 +32,14 @@ impl Resource {
         }
     }
 
+    /// Returns the parent device of this resource.
+    pub fn device(&self) -> &Device {
+        unsafe { &*self.device }
+    }
+
     /// Retrieves the immediate device context of the parent device.
     pub fn device_context(&self) -> &ID3D11DeviceContext {
-        self.device.device_context()
+        self.device().device_context()
     }
 
     #[allow(non_snake_case)]
@@ -54,7 +58,7 @@ impl Resource {
     /// Returns the parent device.
     fn get_device(&self, ret: *mut *mut Device) -> Error {
         let ret = check_mut_ref(ret)?;
-        *ret = self.device.clone().into();
+        *ret = com_ref(self.device);
         Error::Success
     }
 
