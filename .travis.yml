@@ -21,3 +21,6 @@ addons:
   apt:
     packages:
     - gcc-mingw-w64-i686
+
+notifications:
+  email: false

@@ -337,27 +337,3 @@ impl Context {
         Error::Success
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn context_lifetime() {
-        let copy;
-        let original_count;
-
-        {
-            let ctx = Context::new().expect("Failed to create context");
-
-            original_count = ctx.get_adapter_count();
-            assert!(original_count > 0, "No GPUs found on the system.");
-
-            copy = ctx.clone();
-        }
-
-        let count = copy.get_adapter_count();
-
-        assert_eq!(original_count, count);
-    }
-}

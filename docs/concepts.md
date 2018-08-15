@@ -27,3 +27,17 @@ The same applies for [Direct3D 11's documentation][d3d11].
 ## Device (IDirect3DDevice9)
 
 - Logical view of a GPU.
+
+- Contains a lot of state, it's owns both a `ID3D11Device` since it creates resources,
+  but also a `ID3D11Context`, since it queues commands.
+  - A device can be reset (all its state is reset to the default values) at the request of the app.
+
+### Surface
+
+- 2D slice of pixels in the same format.
+
+- Can be locked (memory mapped), filled / copied / stretched / etc.
+  All D3D11 operations which apply to 2D subresources also apply to it.
+
+  - A device can be reset (all its state is reset to the default values) at the request of
+- For our purposes, it's holds a reference to a 2D texture (it either owns it, or is a sub-texture).

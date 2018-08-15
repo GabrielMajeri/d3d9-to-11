@@ -1,31 +1,19 @@
 cargo-features = ["edition"]
 
 [package]
-name = "d3d9-to-11"
+name = "d3d9-tests"
 version = "0.1.0"
 authors = ["Gabriel Majeri <gabriel.majeri6@gmail.com>"]
 license = "LGPL3+"
 edition = "2018"
 
-[lib]
-name = "d3d9"
-crate-type = ["cdylib"]
-
 [dependencies]
-log = "0.4"
-env_logger = "0.5"
 comptr = { git = "https://github.com/GabrielMajeri/comptr-rs" }
-com-impl = { git = "https://github.com/GabrielMajeri/com-impl-rs" }
+winit = "0.17"
 
 [dependencies.winapi]
 version = "0.3"
 features = [
     "winerror",
     "d3d9",
-    "dxgi",
-    "d3d11",
-    "winuser",
 ]
-
-[workspace]
-members = ["tests"]

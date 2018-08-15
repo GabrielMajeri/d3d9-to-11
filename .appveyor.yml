@@ -16,16 +16,16 @@ install:
   - cargo -vV
 
 build_script:
-  - cargo build --target i686-pc-windows-msvc
+  - cargo build --release --target i686-pc-windows-msvc
 
 test_script:
-  # Enable Rust logging for our lib
+  # Enable logging for our lib
   - set RUST_LOG=d3d9=info
-  - cargo test --all --target i686-pc-windows-msvc
+  - cargo run --package d3d9-tests --target i686-pc-windows-msvc
 
 # Save the built DLL.
 artifacts:
-- path: target/debug/d3d9.dll
+- path: target/release/d3d9.dll
   name: D3D9
 
 cache:

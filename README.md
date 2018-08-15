@@ -1,6 +1,7 @@
 # Direct3D 9-to-11
 
 [![AppVeyor build status](https://ci.appveyor.com/api/projects/status/30d6a8gwk4w0u4h8?svg=true)](https://ci.appveyor.com/project/GuildMasterInfinite/d3d9-to-11)
+[![Travis CI Build Status](https://travis-ci.com/GabrielMajeri/d3d9-to-11.svg?branch=master)](https://travis-ci.com/GabrielMajeri/d3d9-to-11)
 [![Lines of Code](https://tokei.rs/b1/github/GabrielMajeri/d3d9-to-11)](https://github.com/GabrielMajeri/d3d9-to-11)
 [![LGPL-3.0](https://img.shields.io/github/license/GabrielMajeri/d3d9-to-11.svg)](LICENSE)
 
@@ -32,13 +33,17 @@ It is better to use pull requests for documentation changes.
 
 Everyone is welcome to contribute to the docs. The docs are licensed under the [GNU Free Documentation License](docs/license.md).
 
-## Building
+## Installation
 
-See the [documentation on how to build from source](docs/building.md).
+In order to install this software, you have two options:
 
-## Using
+- [Use the latest binary artifact built by AppVeyor](docs/installing.md)
 
-After building, see the [usage instructions](docs/usage.md).
+- [Build the library yourself from source](docs/building.md)
+
+## Usage
+
+After installation, see the [usage instructions](docs/usage.md).
 
 ## Credits
 

@@ -15,7 +15,8 @@ Building and running the tests is quite straightforward.
 export WINEDEBUG=-all
 export DXVK_LOG_LEVEL=none
 
-cargo test --all --target x86_64-pc-windows-gnu
+cargo build --target x86_64-pc-windows-gnu
+cargo run --package d3d9-tests --target x86_64-pc-windows-gnu
 ```
 
 **Note**: this assumes you are running on Windows, or that you have Wine installed
