@@ -11,7 +11,7 @@ use winapi::{
 use com_impl::{ComInterface, implementation, interface};
 use comptr::ComPtr;
 
-use super::{Surface, SurfaceData, SwapChain};
+use super::{Surface, SurfaceData, SwapChain, Texture};
 use crate::core::{fmt::d3d_format_to_dxgi, msample::d3d9_to_dxgi_samples, *};
 use crate::{Error, Result};
 
@@ -562,6 +562,67 @@ impl Device {
         Error::Success
     }
 
+    // -- Texture creation functions --
+    fn create_texture(
+        &self,
+        width: u32,
+        height: u32,
+        levels: u32,
+        usage: u32,
+        fmt: D3DFORMAT,
+        pool: D3DPOOL,
+        ret: *mut *mut Texture,
+        shared_handle: usize,
+    ) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        if usage != 0 {
+            unimplemented!("Texture usage flags not yet implemented: {:b}", usage);
+        }
+
+        if pool != D3DPOOL_DEFAULT {
+            error!("Tried to create resource in pool {}", pool);
+            error!("Only the default pool is supported for now");
+            // TODO: handle the different pool types.
+        }
+
+        if shared_handle != 0 {
+            error!("Shared resources are not supported");
+            return Error::InvalidCall;
+        }
+
+        // TODO: we should extract a function from the texture creation code
+        // used for render targets and d/s buffers.
+        let texture = unsafe {
+            let fmt = d3d_format_to_dxgi(fmt);
+
+            let desc = D3D11_TEXTURE2D_DESC {
+                Width: width,
+                Height: height,
+                MipLevels: levels,
+                ArraySize: 1,
+                Format: fmt,
+                // D3D9 does not have multisampled textures.
+                SampleDesc: d3d9_to_dxgi_samples(0, 0),
+                Usage: D3D11_USAGE_DEFAULT,
+                BindFlags: 0,
+                CPUAccessFlags: 0,
+                MiscFlags: 0,
+            };
+
+            let mut ptr = ptr::null_mut();
+
+            let result = self.device.CreateTexture2D(&desc, ptr::null(), &mut ptr);
+            check_hresult(result, "Failed to create 2D texture")?;
+
+            ComPtr::new(ptr)
+        };
+
+        *ret = Texture::new(self, texture).into();
+
+        Error::Success
+    }
+
     // Function stubs:
     // these are functions which are defined, but not yet implemented.
 
@@ -593,9 +654,6 @@ impl Device {
         unimplemented!()
     }
     fn create_state_block() {
-        unimplemented!()
-    }
-    fn create_texture() {
         unimplemented!()
     }
     fn create_vertex_buffer() {
