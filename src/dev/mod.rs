@@ -8,7 +8,7 @@ mod swapchain;
 pub use self::swapchain::SwapChain;
 
 #[macro_use]
-pub (self) mod resource;
+pub(self) mod resource;
 
 mod surface;
 pub use self::surface::{Surface, SurfaceData};

@@ -8,7 +8,7 @@ use winapi::{
     },
 };
 
-use com_impl::{ComInterface, implementation, interface};
+use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
 
 use super::{Device, resource::Resource};

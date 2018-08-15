@@ -84,5 +84,5 @@ macro_rules! impl_resource {
                 info!("Resource pre-loading is not yet implemented");
             }
         }
-    }
+    };
 }

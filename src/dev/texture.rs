@@ -5,11 +5,11 @@ use winapi::{
         d3d11::*,
     }
 };
+use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
-use com_impl::{ComInterface, interface, implementation};
 
-use crate::{Error, core::*};
 use super::{Device, Surface, resource::Resource};
+use crate::{core::*, Error};
 
 /// Structure containing an image and its mip sub-levels.
 ///

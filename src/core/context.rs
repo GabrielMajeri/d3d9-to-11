@@ -14,7 +14,7 @@ use winapi::{
     um::unknwnbase::IUnknownVtbl,
 };
 
-use com_impl::{ComInterface, implementation, interface};
+use com_impl::{implementation, interface, ComInterface};
 
 use super::{
     fmt::{is_depth_stencil_format, is_display_mode_format},
