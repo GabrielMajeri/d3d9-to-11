@@ -1,14 +1,11 @@
 use std::ptr;
 
 use winapi::{
-    shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::HWND},
-    um::{
-        d3d11::*,
-        unknwnbase::IUnknownVtbl,
-    },
+    shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::*},
+    um::{d3d11::*, unknwnbase::IUnknownVtbl},
 };
 
-use com_impl::{ComInterface, implementation, interface};
+use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
 
 use super::{Surface, SurfaceData, SwapChain, Texture};
@@ -562,6 +559,49 @@ impl Device {
         Error::Success
     }
 
+    // -- Surface manipulation functions --
+
+    /// Copies a surface's region to
+    fn update_surface(
+        &self,
+        src: *mut Surface,
+        sr: *const RECT,
+        dest: *mut Surface,
+        dp: *const POINT,
+    ) -> Error {
+        let src = check_mut_ref(src)?;
+        let dest = check_mut_ref(dest)?;
+        let dp = check_ref(dp)?;
+
+        let (src_res, src_subres) = src.subresource();
+        let (dest_res, dest_subres) = dest.subresource();
+
+        unsafe {
+            let src_box = sr.as_ref().map(|sr| D3D11_BOX {
+                left: sr.left as u32,
+                top: sr.top as u32,
+                front: 0,
+                right: sr.right as u32,
+                bottom: sr.bottom as u32,
+                back: 1,
+            });
+
+            let src_box = src_box.map(|b| &b as *const _).unwrap_or(ptr::null());
+
+            self.ctx.CopySubresourceRegion(
+                dest_res,
+                dest_subres,
+                dp.x as u32,
+                dp.y as u32,
+                0,
+                src_res,
+                src_subres,
+                src_box,
+            );
+        }
+
+        Error::Success
+    }
     // -- Texture creation functions --
 
     /// Creates a new texture from the given parameters.
@@ -926,9 +966,6 @@ impl Device {
         unimplemented!()
     }
     fn stretch_rect() {
-        unimplemented!()
-    }
-    fn update_surface() {
         unimplemented!()
     }
     fn update_texture() {

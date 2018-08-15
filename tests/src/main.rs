@@ -5,10 +5,7 @@
 
 #![cfg(windows)]
 
-use std::{
-    ptr,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use winit::os::windows::WindowExt;
 use winit::{EventsLoop, Window};
@@ -24,8 +21,8 @@ fn main() {
     context::run_tests(&ctx);
 
     let hwnd = window.get_hwnd() as *mut _;
-    let device = device::create_device(&ctx, hwnd);
-    device::run_tests(&device);
+    let mut device = device::Device::new(&ctx, hwnd);
+    device.run_tests();
 
     const MAX_TIME: Duration = Duration::from_secs(5);
     let start = Instant::now();
@@ -55,15 +52,7 @@ fn main() {
             }
         });
 
-        // Render calls here:
-        unsafe {
-            device.Present(
-                ptr::null_mut(),
-                ptr::null_mut(),
-                ptr::null_mut(),
-                ptr::null_mut(),
-            );
-        }
+        device.present();
 
         if Instant::now() - start > MAX_TIME {
             should_close = true;
