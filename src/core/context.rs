@@ -11,10 +11,10 @@ use winapi::um::winuser;
 use winapi::Interface;
 use winapi::{
     shared::d3d9::{IDirect3D9, IDirect3D9Vtbl},
-    um::unknwnbase::{IUnknown, IUnknownVtbl},
+    um::unknwnbase::IUnknownVtbl,
 };
 
-use com_impl::{implementation, interface};
+use com_impl::{ComInterface, implementation, interface};
 
 use super::{
     fmt::{is_depth_stencil_format, is_display_mode_format},
@@ -25,7 +25,7 @@ use crate::{dev::Device, Error, Result};
 /// D3D9 interface which stores all application context.
 ///
 /// Similar in role to a DXGI factory.
-#[interface(IUnknown, IDirect3D9)]
+#[interface(IDirect3D9)]
 pub struct Context {
     factory: ComPtr<dxgi::IDXGIFactory>,
     adapters: Vec<Adapter>,
@@ -58,7 +58,7 @@ impl Context {
             .collect();
 
         let ctx = Self {
-            __vtable: Self::create_vtable(),
+            __vtable: Box::new(Self::create_vtable()),
             __refs: Self::create_refs(),
             factory,
             adapters,

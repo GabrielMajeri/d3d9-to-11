@@ -10,7 +10,7 @@ use winapi::{
     Interface,
 };
 
-use com_impl::{implementation, interface};
+use com_impl::{ComInterface, implementation, interface};
 use comptr::ComPtr;
 
 use crate::{
@@ -26,7 +26,7 @@ use super::{Device, Surface, SurfaceData};
 /// The swap chain handles the presentation of the buffers,
 /// i.e. the way they are sent to the screen, and tries to
 /// avoid tearing or input latency.
-#[interface(IUnknown, IDirect3DSwapChain9)]
+#[interface(IDirect3DSwapChain9)]
 pub struct SwapChain {
     // Parent device of this interface.
     parent: *const Device,
@@ -176,7 +176,7 @@ impl SwapChain {
         let sync_interval = cmp::min(pp.PresentationInterval, 4);
 
         let swap_chain = Self {
-            __vtable: Self::create_vtable(),
+            __vtable: Box::new(Self::create_vtable()),
             __refs: Self::create_refs(),
             parent,
             swap_chain,

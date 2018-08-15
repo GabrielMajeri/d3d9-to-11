@@ -4,11 +4,11 @@ use winapi::{
     shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::HWND},
     um::{
         d3d11::*,
-        unknwnbase::{IUnknown, IUnknownVtbl},
+        unknwnbase::IUnknownVtbl,
     },
 };
 
-use com_impl::{implementation, interface};
+use com_impl::{ComInterface, implementation, interface};
 use comptr::ComPtr;
 
 use super::{Surface, SurfaceData, SwapChain};
@@ -16,7 +16,7 @@ use crate::core::{fmt::d3d_format_to_dxgi, msample::d3d9_to_dxgi_samples, *};
 use crate::{Error, Result};
 
 /// Structure representing a logical graphics device.
-#[interface(IUnknown, IDirect3DDevice9)]
+#[interface(IDirect3DDevice9)]
 pub struct Device {
     // Interface which created this device.
     parent: *const Context,
@@ -74,7 +74,7 @@ impl Device {
         };
 
         let device = Self {
-            __vtable: Self::create_vtable(),
+            __vtable: Box::new(Self::create_vtable()),
             __refs: Self::create_refs(),
             parent,
             adapter,

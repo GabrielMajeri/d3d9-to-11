@@ -29,12 +29,12 @@ macro_rules! impl_resource {
     ($name: ident) => {
         impl $name {
             /// Returns the parent device of this resource.
-            pub fn device(&self) -> &Device {
+            fn device(&self) -> &Device {
                 unsafe { &*self.resource.device }
             }
 
             /// Retrieves the immediate device context of the parent device.
-            pub fn device_context(&self) -> &ID3D11DeviceContext {
+            fn device_context(&self) -> &ID3D11DeviceContext {
                 self.device().device_context()
             }
         }

@@ -4,11 +4,11 @@ use winapi::{
     shared::{d3d9::*, d3d9types::*, windef::RECT, winerror},
     um::{
         d3d11::*,
-        unknwnbase::{IUnknown, IUnknownVtbl},
+        unknwnbase::IUnknownVtbl,
     },
 };
 
-use com_impl::{implementation, interface};
+use com_impl::{ComInterface, implementation, interface};
 use comptr::ComPtr;
 
 use super::{Device, resource::Resource};
@@ -18,7 +18,7 @@ use crate::{
 };
 
 /// Represents a 2D contiguous array of pixels.
-#[interface(IUnknown, IDirect3DResource9, IDirect3DSurface9)]
+#[interface(IDirect3DSurface9)]
 pub struct Surface {
     resource: Resource,
     // Reference to the texture we own, or our parent texture.
@@ -52,7 +52,7 @@ impl Surface {
         data: SurfaceData,
     ) -> ComPtr<Self> {
         let surface = Self {
-            __vtable: Self::create_vtable(),
+            __vtable: Box::new(Self::create_vtable()),
             __refs: Self::create_refs(),
             resource: Resource::new(device, D3DRTYPE_SURFACE),
             texture,
