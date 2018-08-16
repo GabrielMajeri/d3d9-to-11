@@ -57,9 +57,15 @@ impl Surface {
         subresource: u32,
         data: SurfaceData,
     ) -> ComPtr<Self> {
+        use self::SurfaceData::*;
+        let pool = match data {
+            None | RenderTarget(_) | DepthStencil(_) => D3DPOOL_DEFAULT,
+            SubTexture(tex) => unsafe { (*tex).pool() },
+        };
+
         let surface = Self {
             __vtable: Box::new(Self::create_vtable()),
-            resource: Resource::new(device, D3DRTYPE_SURFACE),
+            resource: Resource::new(device, pool, D3DRTYPE_SURFACE),
             refs: AtomicU32::new(1),
             texture,
             subresource,
@@ -67,6 +73,11 @@ impl Surface {
         };
 
         unsafe { new_com_interface(surface) }
+    }
+
+    /// Retrieves the memory pool of this resource.
+    pub fn pool(&self) -> D3DPOOL {
+        self.resource.pool()
     }
 
     /// Retrieves a reference to the subresource this surface represents.
@@ -151,9 +162,7 @@ impl Surface {
             D3DUSAGE_DEPTHSTENCIL
         };
 
-        // TODO: can we simply return DEFAULT here,
-        // or do we need to actually remember the original pool?
-        ret.Pool = D3DPOOL_DEFAULT;
+        ret.Pool = self.resource.pool();
 
         let (ms_ty, ms_qlt) = dxgi_samples_to_d3d9(desc.SampleDesc);
         ret.MultiSampleType = ms_ty;

@@ -30,28 +30,30 @@ pub struct Texture {
     texture: ComPtr<ID3D11Texture2D>,
     // Number of mip map levels in this texture.
     levels: u32,
-    // Resource view for this texture.
-    srv: ComPtr<ID3D11ShaderResourceView>,
 }
 
 impl Texture {
     /// Creates a new texture object.
     pub fn new(
         device: *const Device,
+        pool: D3DPOOL,
         texture: ComPtr<ID3D11Texture2D>,
         levels: u32,
-        srv: ComPtr<ID3D11ShaderResourceView>,
     ) -> ComPtr<Self> {
         let texture = Self {
             __vtable: Box::new(Self::create_vtable()),
             refs: AtomicU32::new(1),
-            resource: Resource::new(device, D3DRTYPE_TEXTURE),
+            resource: Resource::new(device, pool, D3DRTYPE_TEXTURE),
             texture,
             levels,
-            srv,
         };
 
         unsafe { new_com_interface(texture) }
+    }
+
+    /// Retrieves the pool in which this texture was allocated.
+    pub fn pool(&self) -> D3DPOOL {
+        self.resource.pool()
     }
 }
 
@@ -132,19 +134,25 @@ impl Texture {
         let mut ty = 0;
 
         if flags & D3DLOCK_READONLY != 0 {
+            error!("Reading data from a texture might not work");
             ty |= D3D11_MAP_READ;
         } else {
-            ty |= D3D11_MAP_READ_WRITE;
-        }
+            ty |= match self.pool() {
+                D3DPOOL_MANAGED => D3D11_MAP_WRITE_DISCARD,
+                D3DPOOL_SYSTEMMEM => D3D11_MAP_WRITE | D3D11_MAP_READ,
+                pool => {
+                    error!("Cannot lock texture in memory pool {}", pool);
+                    return Error::InvalidCall;
+                }
+            };
 
-        // Note: we do not validate that the texture was created
-        // with dynamic usage, since D3D11 will validate that for us.
-        if flags & D3DLOCK_DISCARD != 0 {
-            ty |= D3D11_MAP_WRITE_DISCARD;
-        }
+            if flags & D3DLOCK_DISCARD != 0 {
+                ty |= D3D11_MAP_WRITE_DISCARD;
+            }
 
-        if flags & D3DLOCK_NOOVERWRITE != 0 {
-            ty |= D3D11_MAP_WRITE_NO_OVERWRITE;
+            if flags & D3DLOCK_NOOVERWRITE != 0 {
+                ty |= D3D11_MAP_WRITE_NO_OVERWRITE;
+            }
         }
 
         let mut fl = 0;

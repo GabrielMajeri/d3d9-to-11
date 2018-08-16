@@ -60,6 +60,4 @@ fn main() {
     }
 
     println!("D3D9 tests ran successfuly");
-
-    std::process::exit(0);
 }

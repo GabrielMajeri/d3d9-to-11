@@ -1,5 +1,8 @@
 use winapi::{
-    shared::{d3d9::*, d3d9types::D3DRESOURCETYPE},
+    shared::{
+        d3d9::*,
+        d3d9types::{D3DPOOL, D3DRESOURCETYPE},
+    },
     um::{d3d11::ID3D11DeviceContext, unknwnbase::IUnknownVtbl},
 };
 
@@ -13,20 +16,23 @@ use crate::{core::*, Error};
 pub struct Resource {
     /// Need to hold a reference back to the parent device.
     device: *const Device,
+    /// Memory pool from which this resource was allocated.
+    pool: D3DPOOL,
+    /// The type of this resource.
+    ty: D3DRESOURCETYPE,
     /// Priority of this resource.
     /// Higher value indicates this resource should be evicted last from VRAM.
     priority: u32,
-    /// The type of this resource.
-    ty: D3DRESOURCETYPE,
 }
 
 impl Resource {
     /// Creates a new base resource structure.
-    pub fn new(device: *const Device, ty: D3DRESOURCETYPE) -> Self {
+    pub fn new(device: *const Device, pool: D3DPOOL, ty: D3DRESOURCETYPE) -> Self {
         Self {
             device,
-            priority: 0,
+            pool,
             ty,
+            priority: 0,
         }
     }
 
@@ -38,6 +44,11 @@ impl Resource {
     /// Retrieves the immediate device context of the parent device.
     pub fn device_context(&self) -> &ID3D11DeviceContext {
         self.device().device_context()
+    }
+
+    /// Retrieves the memory pool in which this resource belongs.
+    pub fn pool(&self) -> u32 {
+        self.pool
     }
 }
 

@@ -128,7 +128,7 @@ impl Device {
             height,
             1,
             0,
-            D3DFMT_X8R8G8B8,
+            D3DFMT_A8R8G8B8,
             D3DPOOL_SYSTEMMEM,
         );
 
