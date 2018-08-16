@@ -792,7 +792,8 @@ impl Device {
 
     /// Sets the render state.
     fn set_render_state(&mut self, state: D3DRENDERSTATETYPE, value: u32) -> Error {
-        self.istate.set_render_state(state, value)
+        self.istate.set_render_state(state, value);
+        Error::Success
     }
 
     /// Retrieves the value of the current render state.

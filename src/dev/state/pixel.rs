@@ -1,18 +1,109 @@
-/// Structure containing all state related to pixel processing.
-///
-/// For a list of things contained within the pixel state, see:
-/// https://docs.microsoft.com/en-us/windows/desktop/direct3d9/saving-pixel-states-with-a-stateblock
-pub struct PixelState {}
+use winapi::shared::d3d9types::*;
 
-impl PixelState {
-    /// Creates a new pixel state structure which initially tracks no state.
-    pub(super) fn empty() -> Self {
-        Self {}
-    }
-}
-
-impl Default for PixelState {
-    fn default() -> Self {
-        Self {}
+impl_state! {
+    /// Structure containing all state related to pixel processing.
+    ///
+    /// For a list of things contained within the pixel state, see:
+    /// https://docs.microsoft.com/en-us/windows/desktop/direct3d9/saving-pixel-states-with-a-stateblock
+    pub struct PixelState {
+        // Pixel-related render state
+        z_enable: D3DRS_ZENABLE = D3DZB_FALSE,
+        specular_enable: D3DRS_SPECULARENABLE = 0,
+        fill_mode: D3DRS_FILLMODE = D3DFILL_SOLID,
+        shade_mode: D3DRS_SHADEMODE = D3DSHADE_GOURAUD,
+        z_write_enable: D3DRS_ZWRITEENABLE = 1,
+        alpha_test_enable: D3DRS_ALPHATESTENABLE = 0,
+        last_pixel: D3DRS_LASTPIXEL = 1,
+        src_blend: D3DRS_SRCBLEND = D3DBLEND_ONE,
+        dest_blend: D3DRS_DESTBLEND = D3DBLEND_ZERO,
+        z_func: D3DRS_ZFUNC = D3DCMP_LESSEQUAL,
+        alpha_ref: D3DRS_ALPHAREF = 0,
+        alpha_func: D3DRS_ALPHAFUNC = D3DCMP_ALWAYS,
+        dither_enable: D3DRS_DITHERENABLE = 0,
+        fog_start: D3DRS_FOGSTART = 0,
+        fog_end: D3DRS_FOGEND = 1,
+        fog_density: D3DRS_FOGDENSITY = 1,
+        alpha_blend_enable: D3DRS_ALPHABLENDENABLE = 0,
+        depth_bias: D3DRS_DEPTHBIAS = 0,
+        stencil_enable: D3DRS_STENCILENABLE = 0,
+        stencil_fail: D3DRS_STENCILFAIL = D3DSTENCILOP_KEEP,
+        stencil_z_fail: D3DRS_STENCILZFAIL = D3DSTENCILOP_KEEP,
+        stencil_pass: D3DRS_STENCILPASS = D3DSTENCILOP_KEEP,
+        stencil_func: D3DRS_STENCILFUNC = D3DCMP_ALWAYS,
+        stencil_ref: D3DRS_STENCILREF = 0,
+        stencil_mask: D3DRS_STENCILMASK = 0xffff_ffff,
+        stencil_write_mask: D3DRS_STENCILWRITEMASK = 0xffff_ffff,
+        texture_factor: D3DRS_TEXTUREFACTOR = 0xffff_ffff,
+        wrap0: D3DRS_WRAP0 = 0,
+        wrap1: D3DRS_WRAP1 = 0,
+        wrap2: D3DRS_WRAP2 = 0,
+        wrap3: D3DRS_WRAP3 = 0,
+        wrap4: D3DRS_WRAP4 = 0,
+        wrap5: D3DRS_WRAP5 = 0,
+        wrap6: D3DRS_WRAP6 = 0,
+        wrap7: D3DRS_WRAP7 = 0,
+        wrap8: D3DRS_WRAP8 = 0,
+        wrap9: D3DRS_WRAP9 = 0,
+        wrap10: D3DRS_WRAP10 = 0,
+        wrap11: D3DRS_WRAP11 = 0,
+        wrap12: D3DRS_WRAP12 = 0,
+        wrap13: D3DRS_WRAP13 = 0,
+        wrap14: D3DRS_WRAP14 = 0,
+        wrap15: D3DRS_WRAP15 = 0,
+        local_viewer: D3DRS_LOCALVIEWER = 1,
+        emissive_material_source: D3DRS_EMISSIVEMATERIALSOURCE = D3DMCS_MATERIAL,
+        ambient_material_source: D3DRS_AMBIENTMATERIALSOURCE = D3DMCS_MATERIAL,
+        diffuse_material_source: D3DRS_DIFFUSEMATERIALSOURCE = D3DMCS_COLOR1,
+        specular_material_source: D3DRS_SPECULARMATERIALSOURCE = D3DMCS_COLOR2,
+        color_write_enable: D3DRS_COLORWRITEENABLE = 0xf,
+        blend_op: D3DRS_BLENDOP = D3DBLENDOP_ADD,
+        scissor_test_enable: D3DRS_SCISSORTESTENABLE = 0,
+        slope_scale_depth_bias: D3DRS_SLOPESCALEDEPTHBIAS = 0,
+        antialiased_line_enable: D3DRS_ANTIALIASEDLINEENABLE = 0,
+        two_sided_stencil_mode: D3DRS_TWOSIDEDSTENCILMODE = 0,
+        ccw_stencil_fail: D3DRS_CCW_STENCILFAIL = D3DSTENCILOP_KEEP,
+        ccw_stencil_z_fail: D3DRS_CCW_STENCILZFAIL = D3DSTENCILOP_KEEP,
+        ccw_stencil_pass: D3DRS_CCW_STENCILPASS = D3DSTENCILOP_KEEP,
+        ccw_stencil_func: D3DRS_CCW_STENCILFUNC = D3DCMP_ALWAYS,
+        color_write_enable1: D3DRS_COLORWRITEENABLE1 = 0xf,
+        color_write_enable2: D3DRS_COLORWRITEENABLE2 = 0xf,
+        color_write_enable3: D3DRS_COLORWRITEENABLE3 = 0xf,
+        blend_factor: D3DRS_BLENDFACTOR = 0xffff_ffff,
+        srgb_write_enable: D3DRS_SRGBWRITEENABLE = 0,
+        separate_alpha_blend_enable: D3DRS_SEPARATEALPHABLENDENABLE = 0,
+        src_blend_alpha: D3DRS_SRCBLENDALPHA = D3DBLEND_ONE,
+        dest_blend_alpha: D3DRS_DESTBLENDALPHA = D3DBLEND_ZERO,
+        blend_op_alpha: D3DRS_BLENDOPALPHA = D3DBLENDOP_ADD;
+        // Sampler state
+        address_u: D3DSAMP_ADDRESSU = D3DTADDRESS_WRAP,
+        address_v: D3DSAMP_ADDRESSV = D3DTADDRESS_WRAP,
+        address_w: D3DSAMP_ADDRESSW = D3DTADDRESS_WRAP,
+        border_color: D3DSAMP_BORDERCOLOR = 0,
+        mag_filter: D3DSAMP_MAGFILTER = D3DTEXF_POINT,
+        min_filter: D3DSAMP_MINFILTER = D3DTEXF_POINT,
+        mip_filter: D3DSAMP_MIPFILTER = D3DTEXF_NONE,
+        mip_map_lod_bias: D3DSAMP_MIPMAPLODBIAS = 0,
+        max_mip_level: D3DSAMP_MAXMIPLEVEL = 0,
+        max_anisotropy: D3DSAMP_MAXANISOTROPY = 1,
+        srgb_texture: D3DSAMP_SRGBTEXTURE = 0,
+        element_index: D3DSAMP_ELEMENTINDEX = 0;
+        // Texture state
+        color_op: D3DTSS_COLOROP = D3DTOP_DISABLE,
+        color_arg1: D3DTSS_COLORARG1 = D3DTA_TEXTURE,
+        color_arg2: D3DTSS_COLORARG2 = D3DTA_CURRENT,
+        alpha_op: D3DTSS_ALPHAOP = D3DTOP_DISABLE,
+        alpha_arg1: D3DTSS_ALPHAARG1 = D3DTA_TEXTURE,
+        alpha_arg2: D3DTSS_ALPHAARG2 = D3DTA_CURRENT,
+        bump_env_mat00: D3DTSS_BUMPENVMAT00	= 0,
+        bump_env_mat01: D3DTSS_BUMPENVMAT01 = 0,
+        bump_env_mat10: D3DTSS_BUMPENVMAT10 = 0,
+        bump_env_mat11: D3DTSS_BUMPENVMAT11 = 0,
+        tex_coord_index: D3DTSS_TEXCOORDINDEX = 0,
+        bump_env_l_scale: D3DTSS_BUMPENVLSCALE = 0,
+        bump_env_l_offset: D3DTSS_BUMPENVLOFFSET = 0,
+        texture_transform_flags: D3DTSS_TEXTURETRANSFORMFLAGS = D3DTTFF_DISABLE,
+        color_arg0: D3DTSS_COLORARG0 = D3DTA_CURRENT,
+        alpha_arg0: D3DTSS_ALPHAARG0 = D3DTA_CURRENT,
+        result_arg: D3DTSS_RESULTARG = D3DTA_CURRENT;
     }
 }

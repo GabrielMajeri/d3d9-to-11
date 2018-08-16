@@ -1,10 +1,13 @@
 //! Pipeline state support structures.
 
+#[macro_use]
+mod macros;
+
 mod pixel;
-pub use self::pixel::PixelState;
+pub(self) use self::pixel::PixelState;
 
 mod vertex;
-pub use self::vertex::VertexState;
+pub(self) use self::vertex::VertexState;
 
 mod device;
 pub use self::device::DeviceState;
