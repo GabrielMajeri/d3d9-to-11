@@ -1,20 +1,18 @@
-use std::{
-    ptr,
-    sync::atomic::{AtomicU32, Ordering},
-};
+use std::ptr;
+use std::sync::atomic::{AtomicU32, Ordering};
 
-use winapi::{
-    shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::*},
-    um::{
-        d3d11::*,
-        unknwnbase::{IUnknown, IUnknownVtbl},
-    },
+use winapi::shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::*};
+use winapi::um::{
+    d3d11::*,
+    unknwnbase::{IUnknown, IUnknownVtbl},
 };
 
 use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
 
+use super::state::{DeviceState, StateBlock};
 use super::{Surface, SurfaceData, SwapChain, Texture};
+
 use crate::core::{fmt::d3d_format_to_dxgi, msample::d3d9_to_dxgi_samples, *};
 use crate::{Error, Result};
 
@@ -47,6 +45,10 @@ pub struct Device {
     render_targets: Vec<Option<ComPtr<Surface>>>,
     // The device's current depth / stencil buffer.
     depth_stencil: Option<ComPtr<Surface>>,
+
+    // The current internal state of this device,
+    // as it was last set by calling state functions.
+    istate: DeviceState,
 }
 
 impl Device {
@@ -77,6 +79,8 @@ impl Device {
                 .ok_or(Error::InvalidCall)?
         };
 
+        let istate = DeviceState::default();
+
         let device = Self {
             __vtable: Box::new(Self::create_vtable()),
             refs: AtomicU32::new(1),
@@ -90,6 +94,7 @@ impl Device {
             swap_chains: Vec::new(),
             render_targets: Vec::new(),
             depth_stencil: None,
+            istate,
         };
 
         let mut device: ComPtr<Device> = unsafe { new_com_interface(device) };
@@ -254,6 +259,11 @@ impl_iunknown!(struct Device: IUnknown, IDirect3DDevice9);
 #[implementation(IDirect3DDevice9)]
 impl Device {
     // -- Device status functions --
+
+    /// Resets the device, recreating all its state.
+    fn reset() {
+        unimplemented!()
+    }
 
     /// Checks that the device has not yet been lost / reset.
     fn test_cooperative_level() -> Error {
@@ -615,6 +625,17 @@ impl Device {
 
         Error::Success
     }
+
+    fn update_texture() {
+        unimplemented!()
+    }
+    fn stretch_rect() {
+        unimplemented!()
+    }
+    fn color_fill() {
+        unimplemented!()
+    }
+
     // -- Texture creation functions --
 
     /// Creates a new texture from the given parameters.
@@ -694,54 +715,29 @@ impl Device {
         Error::Success
     }
 
-    // Function stubs:
-    // these are functions which are defined, but not yet implemented.
-
-    fn begin_scene() {
-        unimplemented!()
-    }
-    fn begin_state_block() {
-        unimplemented!()
-    }
-    fn clear() {
-        unimplemented!()
-    }
-    fn color_fill() {
-        unimplemented!()
-    }
     fn create_cube_texture() {
-        unimplemented!()
-    }
-    fn create_index_buffer() {
         unimplemented!()
     }
     fn create_offscreen_plain_surface() {
         unimplemented!()
     }
-    fn create_pixel_shader() {
-        unimplemented!()
-    }
-    fn create_query() {
-        unimplemented!()
-    }
-    fn create_state_block() {
-        unimplemented!()
-    }
-    fn create_vertex_buffer() {
-        unimplemented!()
-    }
-    fn create_vertex_declaration() {
-        unimplemented!()
-    }
-    fn create_vertex_shader() {
-        unimplemented!()
-    }
     fn create_volume_texture() {
         unimplemented!()
     }
-    fn delete_patch() {
+
+    // -- Drawing functions --
+
+    fn clear() {
         unimplemented!()
     }
+
+    fn begin_scene() {
+        unimplemented!()
+    }
+    fn end_scene() {
+        unimplemented!()
+    }
+
     fn draw_indexed_primitive() {
         unimplemented!()
     }
@@ -754,16 +750,209 @@ impl Device {
     fn draw_primitive_u_p() {
         unimplemented!()
     }
+
+    // -- State block functions --
+
+    /// Creates a new state block which can capture commands.
+    fn create_state_block(&mut self, ty: D3DSTATEBLOCKTYPE, ret: *mut *mut StateBlock) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        *ret = StateBlock::new(self, ty)?.into();
+
+        Error::Success
+    }
+
+    /// Begins recording a new state block.
+    fn begin_state_block(&mut self) -> Error {
+        unimplemented!()
+    }
+
+    /// Ends recording a state block, and returns a pointer to it.
+    fn end_state_block(&mut self, ret: *mut *mut StateBlock) -> Error {
+        let _ret = check_mut_ref(ret)?;
+        unimplemented!()
+    }
+
+    // -- Hardware cursor functions --
+
+    fn set_cursor_position() {
+        unimplemented!()
+    }
+    fn set_cursor_properties() {
+        unimplemented!()
+    }
+    fn show_cursor() {
+        unimplemented!()
+    }
+
+    // -- Pipeline state functions --
+    // All of these functions are captured by state blocks.
+
+    // -- Render state functions --
+
+    /// Sets the render state.
+    fn set_render_state(&mut self, state: D3DRENDERSTATETYPE, value: u32) -> Error {
+        self.istate.set_render_state(state, value)
+    }
+
+    /// Retrieves the value of the current render state.
+    fn get_render_state(&self, state: D3DRENDERSTATETYPE, ret: *mut u32) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        *ret = self.istate.get_render_state(state);
+
+        Error::Success
+    }
+
+    /// Validates the current state of the device, or the state of the
+    /// currently recording state block, if any.
+    fn validate_device() {
+        unimplemented!()
+    }
+
+    // -- Vertex shader functions --
+
+    fn create_vertex_declaration() {
+        unimplemented!()
+    }
+    fn set_vertex_declaration() {
+        unimplemented!()
+    }
+    fn get_vertex_declaration() {
+        unimplemented!()
+    }
+
+    fn create_vertex_shader() {
+        unimplemented!()
+    }
+    fn set_vertex_shader() {
+        unimplemented!()
+    }
+    fn get_vertex_shader() {
+        unimplemented!()
+    }
+    fn set_vertex_shader_constant_b() {
+        unimplemented!()
+    }
+    fn get_vertex_shader_constant_b() {
+        unimplemented!()
+    }
+    fn set_vertex_shader_constant_f() {
+        unimplemented!()
+    }
+    fn get_vertex_shader_constant_f() {
+        unimplemented!()
+    }
+    fn set_vertex_shader_constant_i() {
+        unimplemented!()
+    }
+    fn get_vertex_shader_constant_i() {
+        unimplemented!()
+    }
+
+    fn create_vertex_buffer() {
+        unimplemented!()
+    }
+
+    fn create_index_buffer() {
+        unimplemented!()
+    }
+
+    fn set_stream_source() {
+        unimplemented!()
+    }
+    fn get_stream_source() {
+        unimplemented!()
+    }
+
+    fn set_stream_source_freq() {
+        unimplemented!()
+    }
+    fn get_stream_source_freq() {
+        unimplemented!()
+    }
+
+    // -- Pixel shader functions --
+
+    fn set_sampler_state() {
+        unimplemented!()
+    }
+    fn get_sampler_state() {
+        unimplemented!()
+    }
+
+    fn create_pixel_shader() {
+        unimplemented!()
+    }
+    fn set_pixel_shader() {
+        unimplemented!()
+    }
+    fn get_pixel_shader() {
+        unimplemented!()
+    }
+    fn set_pixel_shader_constant_b() {
+        unimplemented!()
+    }
+    fn get_pixel_shader_constant_b() {
+        unimplemented!()
+    }
+    fn set_pixel_shader_constant_f() {
+        unimplemented!()
+    }
+    fn get_pixel_shader_constant_f() {
+        unimplemented!()
+    }
+    fn set_pixel_shader_constant_i() {
+        unimplemented!()
+    }
+    fn get_pixel_shader_constant_i() {
+        unimplemented!()
+    }
+
+    fn get_texture() {
+        unimplemented!()
+    }
+    fn set_texture() {
+        unimplemented!()
+    }
+    fn get_texture_stage_state() {
+        unimplemented!()
+    }
+    fn set_texture_stage_state() {
+        unimplemented!()
+    }
+
+    // -- Output Merger state --
+
+    fn set_viewport() {
+        unimplemented!()
+    }
+    fn get_viewport() {
+        unimplemented!()
+    }
+
+    fn set_scissor_rect() {
+        unimplemented!()
+    }
+    fn get_scissor_rect() {
+        unimplemented!()
+    }
+
+    // -- Query creation --
+
+    fn create_query() {
+        unimplemented!()
+    }
+
+    // -- Fixed function pipeline --
+
+    fn delete_patch() {
+        unimplemented!()
+    }
     fn draw_rect_patch() {
         unimplemented!()
     }
     fn draw_tri_patch() {
-        unimplemented!()
-    }
-    fn end_scene() {
-        unimplemented!()
-    }
-    fn end_state_block() {
         unimplemented!()
     }
     fn get_clip_plane() {
@@ -799,61 +988,10 @@ impl Device {
     fn get_palette_entries() {
         unimplemented!()
     }
-    fn get_pixel_shader() {
-        unimplemented!()
-    }
-    fn get_pixel_shader_constant_b() {
-        unimplemented!()
-    }
-    fn get_pixel_shader_constant_f() {
-        unimplemented!()
-    }
-    fn get_pixel_shader_constant_i() {
-        unimplemented!()
-    }
-    fn get_render_state() {
-        unimplemented!()
-    }
-    fn get_sampler_state() {
-        unimplemented!()
-    }
-    fn get_scissor_rect() {
-        unimplemented!()
-    }
     fn get_software_vertex_processing() {
         unimplemented!()
     }
-    fn get_stream_source() {
-        unimplemented!()
-    }
-    fn get_stream_source_freq() {
-        unimplemented!()
-    }
-    fn get_texture() {
-        unimplemented!()
-    }
-    fn get_texture_stage_state() {
-        unimplemented!()
-    }
     fn get_transform() {
-        unimplemented!()
-    }
-    fn get_vertex_declaration() {
-        unimplemented!()
-    }
-    fn get_vertex_shader() {
-        unimplemented!()
-    }
-    fn get_vertex_shader_constant_b() {
-        unimplemented!()
-    }
-    fn get_vertex_shader_constant_f() {
-        unimplemented!()
-    }
-    fn get_vertex_shader_constant_i() {
-        unimplemented!()
-    }
-    fn get_viewport() {
         unimplemented!()
     }
     fn light_enable() {
@@ -865,9 +1003,6 @@ impl Device {
     fn process_vertices() {
         unimplemented!()
     }
-    fn reset() {
-        unimplemented!()
-    }
     fn set_clip_plane() {
         unimplemented!()
     }
@@ -875,12 +1010,6 @@ impl Device {
         unimplemented!()
     }
     fn set_current_texture_palette() {
-        unimplemented!()
-    }
-    fn set_cursor_position() {
-        unimplemented!()
-    }
-    fn set_cursor_properties() {
         unimplemented!()
     }
     fn set_dialog_box_mode() {
@@ -907,73 +1036,10 @@ impl Device {
     fn set_palette_entries() {
         unimplemented!()
     }
-    fn set_pixel_shader() {
-        unimplemented!()
-    }
-    fn set_pixel_shader_constant_b() {
-        unimplemented!()
-    }
-    fn set_pixel_shader_constant_f() {
-        unimplemented!()
-    }
-    fn set_pixel_shader_constant_i() {
-        unimplemented!()
-    }
-    fn set_render_state() {
-        unimplemented!()
-    }
-    fn set_sampler_state() {
-        unimplemented!()
-    }
-    fn set_scissor_rect() {
-        unimplemented!()
-    }
     fn set_software_vertex_processing() {
         unimplemented!()
     }
-    fn set_stream_source() {
-        unimplemented!()
-    }
-    fn set_stream_source_freq() {
-        unimplemented!()
-    }
-    fn set_texture() {
-        unimplemented!()
-    }
-    fn set_texture_stage_state() {
-        unimplemented!()
-    }
     fn set_transform() {
-        unimplemented!()
-    }
-    fn set_vertex_declaration() {
-        unimplemented!()
-    }
-    fn set_vertex_shader() {
-        unimplemented!()
-    }
-    fn set_vertex_shader_constant_b() {
-        unimplemented!()
-    }
-    fn set_vertex_shader_constant_f() {
-        unimplemented!()
-    }
-    fn set_vertex_shader_constant_i() {
-        unimplemented!()
-    }
-    fn set_viewport() {
-        unimplemented!()
-    }
-    fn show_cursor() {
-        unimplemented!()
-    }
-    fn stretch_rect() {
-        unimplemented!()
-    }
-    fn update_texture() {
-        unimplemented!()
-    }
-    fn validate_device() {
         unimplemented!()
     }
 }
