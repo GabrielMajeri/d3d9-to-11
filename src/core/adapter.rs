@@ -295,7 +295,11 @@ impl Adapter {
             AlphaCmpCaps: !0,
             ShadeCaps: !0,
             // This cap indicates lack of support, so we mask it.
-            TextureCaps: !D3DPTEXTURECAPS_NOPROJECTEDBUMPENV,
+            TextureCaps: !(D3DPTEXTURECAPS_CUBEMAP_POW2
+                | D3DPTEXTURECAPS_NOPROJECTEDBUMPENV
+                | D3DPTEXTURECAPS_NONPOW2CONDITIONAL
+                | D3DPTEXTURECAPS_POW2
+                | D3DPTEXTURECAPS_VOLUMEMAP_POW2),
             TextureFilterCaps: !0,
             CubeTextureFilterCaps: !0,
             VolumeTextureFilterCaps: !0,
@@ -312,10 +316,10 @@ impl Adapter {
             // The depth buffer is at most a 32-bit float.
             MaxVertexW: std::f32::MAX,
             // Modern GPUs have really big guard bands
-            GuardBandLeft: 0.0,
-            GuardBandTop: 0.0,
-            GuardBandRight: 0.0,
-            GuardBandBottom: 0.0,
+            GuardBandLeft: -100_000.0,
+            GuardBandTop: -100_000.0,
+            GuardBandRight: 100_000.0,
+            GuardBandBottom: 100_000.0,
             ExtentsAdjust: 0.0,
             StencilCaps: !0,
             FVFCaps: !0,
