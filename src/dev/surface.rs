@@ -1,8 +1,14 @@
-use std::mem;
+use std::{
+    mem,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 use winapi::{
     shared::{d3d9::*, d3d9types::*, guiddef::GUID, windef::RECT},
-    um::{d3d11::*, unknwnbase::IUnknownVtbl},
+    um::{
+        d3d11::*,
+        unknwnbase::{IUnknown, IUnknownVtbl},
+    },
 };
 
 use com_impl::{implementation, interface, ComInterface};
@@ -18,6 +24,7 @@ use crate::{
 #[interface(IDirect3DSurface9)]
 pub struct Surface {
     resource: Resource,
+    refs: AtomicU32,
     // Reference to the texture we own, or our parent texture.
     texture: ComPtr<ID3D11Texture2D>,
     // An index representing the sub-resource we are owning.
@@ -52,8 +59,8 @@ impl Surface {
     ) -> ComPtr<Self> {
         let surface = Self {
             __vtable: Box::new(Self::create_vtable()),
-            __refs: Self::create_refs(),
             resource: Resource::new(device, D3DRTYPE_SURFACE),
+            refs: AtomicU32::new(1),
             texture,
             subresource,
             data,
@@ -96,9 +103,17 @@ impl Surface {
     }
 }
 
-impl_resource!(Surface);
+impl_iunknown!(struct Surface: IUnknown, IDirect3DResource9, IDirect3DSurface9);
 
-#[implementation(IDirect3DResource9, IDirect3DSurface9)]
+impl ComInterface<IDirect3DResource9Vtbl> for Surface {
+    fn create_vtable() -> IDirect3DResource9Vtbl {
+        let mut vtbl: IDirect3DResource9Vtbl = Resource::create_vtable();
+        vtbl.parent = Self::create_vtable();
+        vtbl
+    }
+}
+
+#[implementation(IDirect3DSurface9)]
 impl Surface {
     /// Gets the container of this resource.
     fn get_container(&self, _riid: &GUID, ret: *mut usize) -> Error {
@@ -107,7 +122,7 @@ impl Surface {
         *ret = if let SurfaceData::SubTexture(texture) = self.data {
             com_ref(texture) as usize
         } else {
-            com_ref(self.device()) as usize
+            com_ref(self.resource.device()) as usize
         };
 
         Error::Success

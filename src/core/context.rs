@@ -1,4 +1,7 @@
-use std::{mem, ptr};
+use std::{
+    mem, ptr,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 use comptr::ComPtr;
 use winapi::ctypes::c_void;
@@ -11,7 +14,7 @@ use winapi::um::winuser;
 use winapi::Interface;
 use winapi::{
     shared::d3d9::{IDirect3D9, IDirect3D9Vtbl},
-    um::unknwnbase::IUnknownVtbl,
+    um::unknwnbase::{IUnknown, IUnknownVtbl},
 };
 
 use com_impl::{implementation, interface, ComInterface};
@@ -27,6 +30,7 @@ use crate::{dev::Device, Error, Result};
 /// Similar in role to a DXGI factory.
 #[interface(IDirect3D9)]
 pub struct Context {
+    refs: AtomicU32,
     factory: ComPtr<dxgi::IDXGIFactory>,
     adapters: Vec<Adapter>,
 }
@@ -59,7 +63,7 @@ impl Context {
 
         let ctx = Self {
             __vtable: Box::new(Self::create_vtable()),
-            __refs: Self::create_refs(),
+            refs: AtomicU32::new(1),
             factory,
             adapters,
         };
@@ -81,7 +85,9 @@ impl Context {
     }
 }
 
-#[implementation(IUnknown, IDirect3D9)]
+impl_iunknown!(struct Context: IUnknown, IDirect3D9);
+
+#[implementation(IDirect3D9)]
 impl Context {
     /// Used to register a software rasterizer.
     fn register_software_device(&self, init_fn: *mut c_void) -> Error {

@@ -1,17 +1,23 @@
-use winapi::shared::d3d9types::D3DRESOURCETYPE;
+use winapi::{
+    shared::{d3d9::*, d3d9types::D3DRESOURCETYPE},
+    um::{d3d11::ID3D11DeviceContext, unknwnbase::IUnknownVtbl},
+};
+
+use com_impl::{implementation, ComInterface};
 
 use super::Device;
+use crate::{core::*, Error};
 
 /// Structure used as the base for all the D3D9 device resources.
 /// Use the `impl_resource` macro to implement its functions in inherited classes.
 pub struct Resource {
     /// Need to hold a reference back to the parent device.
-    pub device: *const Device,
+    device: *const Device,
     /// Priority of this resource.
     /// Higher value indicates this resource should be evicted last from VRAM.
-    pub priority: u32,
+    priority: u32,
     /// The type of this resource.
-    pub ty: D3DRESOURCETYPE,
+    ty: D3DRESOURCETYPE,
 }
 
 impl Resource {
@@ -23,66 +29,86 @@ impl Resource {
             ty,
         }
     }
+
+    /// Returns the parent device of this resource.
+    pub fn device(&self) -> &Device {
+        unsafe { &*self.device }
+    }
+
+    /// Retrieves the immediate device context of the parent device.
+    pub fn device_context(&self) -> &ID3D11DeviceContext {
+        self.device().device_context()
+    }
 }
 
-macro_rules! impl_resource {
-    ($name: ident) => {
-        impl $name {
-            /// Returns the parent device of this resource.
-            fn device(&self) -> &Device {
-                unsafe { &*self.resource.device }
-            }
+impl ComInterface<IUnknownVtbl> for Resource {
+    fn create_vtable() -> IUnknownVtbl {
+        unsafe { std::mem::zeroed() }
+    }
+}
 
-            /// Retrieves the immediate device context of the parent device.
-            fn device_context(&self) -> &ID3D11DeviceContext {
-                self.device().device_context()
-            }
-        }
+#[repr(C)]
+struct Thunk {
+    __vtbl: usize,
+    rsrc: Resource,
+}
 
-        #[implementation(IUnknown, IDirect3DResource9)]
-        impl $name {
-            /// Retrieves the type of this resource.
-            fn get_type(&self) -> D3DRESOURCETYPE {
-                self.resource.ty
-            }
+impl std::ops::Deref for Thunk {
+    type Target = Resource;
+    fn deref(&self) -> &Resource {
+        &self.rsrc
+    }
+}
 
-            /// Returns the parent device.
-            fn get_device(&self, ret: *mut *mut Device) -> Error {
-                let ret = check_mut_ref(ret)?;
-                *ret = com_ref(self.resource.device);
-                Error::Success
-            }
+impl std::ops::DerefMut for Thunk {
+    type Target = Resource;
+    fn deref_mut(&mut self) -> &mut Resource {
+        &mut self.rsrc
+    }
+}
 
-            fn set_private_data() {
-                unimplemented!()
-            }
+#[implementation(IDirect3DResource9)]
+impl Resource {
+    /// Retrieves the type of this resource.
+    fn get_type(self: &Thunk) -> D3DRESOURCETYPE {
+        self.ty
+    }
 
-            fn get_private_data() {
-                unimplemented!()
-            }
+    /// Returns the parent device.
+    fn get_device(self: &Thunk, ret: *mut *mut Device) -> Error {
+        let ret = check_mut_ref(ret)?;
+        *ret = com_ref(self.device);
+        Error::Success
+    }
 
-            fn free_private_data() {
-                unimplemented!()
-            }
+    fn set_private_data(self: &Thunk) {
+        unimplemented!()
+    }
 
-            // TODO: the functions below could be used to improve performance.
+    fn get_private_data(self: &Thunk) {
+        unimplemented!()
+    }
 
-            /// Updates this resource's priority.
-            fn set_priority(&mut self, priority: u32) -> u32 {
-                let old = self.resource.priority;
-                self.resource.priority = priority;
-                old
-            }
+    fn free_private_data(self: &Thunk) {
+        unimplemented!()
+    }
 
-            /// Returns the priority of this resource.
-            fn get_priority(&self) -> u32 {
-                self.resource.priority
-            }
+    // TODO: the functions below could be used to improve performance.
 
-            /// Pre loads resource to VRAM.
-            fn pre_load(&self) {
-                info!("Resource pre-loading is not yet implemented");
-            }
-        }
-    };
+    /// Updates this resource's priority.
+    fn set_priority(self: &mut Thunk, priority: u32) -> u32 {
+        let old = self.priority;
+        self.priority = priority;
+        old
+    }
+
+    /// Returns the priority of this resource.
+    fn get_priority(self: &mut Thunk) -> u32 {
+        self.priority
+    }
+
+    /// Pre loads resource to VRAM.
+    fn pre_load(self: &Thunk) {
+        info!("Resource pre-loading is not yet implemented");
+    }
 }

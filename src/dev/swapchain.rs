@@ -1,4 +1,7 @@
-use std::{cmp, mem, ptr};
+use std::{
+    cmp, mem, ptr,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 use winapi::{
     shared::{d3d9::*, d3d9types::*, dxgi::*, dxgitype::*, windef::HWND, winerror},
@@ -28,6 +31,7 @@ use super::{Device, Surface, SurfaceData};
 /// avoid tearing or input latency.
 #[interface(IDirect3DSwapChain9)]
 pub struct SwapChain {
+    refs: AtomicU32,
     // Parent device of this interface.
     parent: *const Device,
     // The equivalent DXGI interface.
@@ -177,7 +181,7 @@ impl SwapChain {
 
         let swap_chain = Self {
             __vtable: Box::new(Self::create_vtable()),
-            __refs: Self::create_refs(),
+            refs: AtomicU32::new(1),
             parent,
             swap_chain,
             pp,
@@ -212,7 +216,9 @@ impl Drop for SwapChain {
     }
 }
 
-#[implementation(IUnknown, IDirect3DSwapChain9)]
+impl_iunknown!(struct SwapChain: IUnknown, IDirect3DSwapChain9);
+
+#[implementation(IDirect3DSwapChain9)]
 impl SwapChain {
     /// Presents the back buffer to the screen, and moves to the next buffer in the chain.
     pub fn present(&self, src: usize, dest: usize, wnd: HWND, dirty: usize, flags: u32) -> Error {

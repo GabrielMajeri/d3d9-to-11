@@ -1,8 +1,14 @@
-use std::{mem, ptr};
+use std::{
+    mem, ptr,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 use winapi::{
     shared::{d3d9::*, d3d9types::*, windef::RECT, winerror},
-    um::{d3d11::*, unknwnbase::IUnknownVtbl},
+    um::{
+        d3d11::*,
+        unknwnbase::{IUnknown, IUnknownVtbl},
+    },
 };
 
 use com_impl::{implementation, interface, ComInterface};
@@ -19,6 +25,7 @@ use crate::{core::*, Error};
 #[interface(IDirect3DTexture9)]
 pub struct Texture {
     resource: Resource,
+    refs: AtomicU32,
     // Pointer to the corresponding D3D11 interface.
     texture: ComPtr<ID3D11Texture2D>,
     // Number of mip map levels in this texture.
@@ -37,7 +44,7 @@ impl Texture {
     ) -> ComPtr<Self> {
         let texture = Self {
             __vtable: Box::new(Self::create_vtable()),
-            __refs: Self::create_refs(),
+            refs: AtomicU32::new(1),
             resource: Resource::new(device, D3DRTYPE_TEXTURE),
             texture,
             levels,
@@ -48,9 +55,17 @@ impl Texture {
     }
 }
 
-impl_resource!(Texture);
+impl_iunknown!(struct Texture: IUnknown, IDirect3DResource9, IDirect3DBaseTexture9, IDirect3DTexture9);
 
-#[implementation(IDirect3DResource9, IDirect3DBaseTexture9)]
+impl ComInterface<IDirect3DResource9Vtbl> for Texture {
+    fn create_vtable() -> IDirect3DResource9Vtbl {
+        let mut vtbl: IDirect3DResource9Vtbl = Resource::create_vtable();
+        vtbl.parent = Self::create_vtable();
+        vtbl
+    }
+}
+
+#[implementation(IDirect3DBaseTexture9)]
 impl Texture {
     fn set_l_o_d(&mut self, _lod: u32) -> u32 {
         unimplemented!()
@@ -75,7 +90,7 @@ impl Texture {
     }
 }
 
-#[implementation(IDirect3DBaseTexture9, IDirect3DTexture9)]
+#[implementation(IDirect3DTexture9)]
 impl Texture {
     /// Retrieves the description of a certain mip level.
     fn get_level_desc(&self, level: u32, desc: *mut D3DSURFACE_DESC) -> Error {
@@ -98,7 +113,7 @@ impl Texture {
 
         let data = SurfaceData::SubTexture(self as *const _);
 
-        *ret = Surface::new(self.device(), self.texture.clone(), level, data).into();
+        *ret = Surface::new(self.resource.device(), self.texture.clone(), level, data).into();
 
         Error::Success
     }
@@ -145,6 +160,7 @@ impl Texture {
             let mut mapped = mem::uninitialized();
 
             let result = self
+                .resource
                 .device_context()
                 .Map(resource, level, ty, fl, &mut mapped);
 
@@ -169,7 +185,7 @@ impl Texture {
         let resource = self.texture.upcast().as_mut();
 
         unsafe {
-            self.device_context().Unmap(resource, level);
+            self.resource.device_context().Unmap(resource, level);
         }
 
         Error::Success

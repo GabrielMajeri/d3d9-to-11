@@ -1,5 +1,6 @@
 //! Direct3D 9 to Direct3D 11 / DXGI converter.
 
+#![feature(arbitrary_self_types)]
 #![feature(const_fn)]
 #![feature(integer_atomics)]
 #![feature(rust_2018_preview)]

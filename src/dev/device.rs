@@ -1,8 +1,14 @@
-use std::ptr;
+use std::{
+    ptr,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 use winapi::{
     shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::*},
-    um::{d3d11::*, unknwnbase::IUnknownVtbl},
+    um::{
+        d3d11::*,
+        unknwnbase::{IUnknown, IUnknownVtbl},
+    },
 };
 
 use com_impl::{implementation, interface, ComInterface};
@@ -15,6 +21,7 @@ use crate::{Error, Result};
 /// Structure representing a logical graphics device.
 #[interface(IDirect3DDevice9)]
 pub struct Device {
+    refs: AtomicU32,
     // Interface which created this device.
     parent: *const Context,
     // The adapter this device represents.
@@ -72,7 +79,7 @@ impl Device {
 
         let device = Self {
             __vtable: Box::new(Self::create_vtable()),
-            __refs: Self::create_refs(),
+            refs: AtomicU32::new(1),
             parent,
             adapter,
             device,
@@ -242,7 +249,9 @@ impl Device {
     }
 }
 
-#[implementation(IUnknown, IDirect3DDevice9)]
+impl_iunknown!(struct Device: IUnknown, IDirect3DDevice9);
+
+#[implementation(IDirect3DDevice9)]
 impl Device {
     // -- Device status functions --
 
