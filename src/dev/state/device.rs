@@ -1,5 +1,7 @@
 use winapi::shared::d3d9types::*;
 
+use crate::dev::shader::VertexDeclaration;
+
 use super::{PixelState, VertexState};
 
 /// Structure containing all render state.
@@ -22,8 +24,6 @@ impl DeviceState {
     }
 
     pub fn set_render_state(&mut self, state: D3DRENDERSTATETYPE, value: u32) {
-        // TODO: some state is shared between the vertex and pixel state.
-        // Must find a way to handle that case.
         self.vertex.set_render_state(state, value);
         self.pixel.set_render_state(state, value);
     }
@@ -33,6 +33,14 @@ impl DeviceState {
             .get_render_state(state)
             .or_else(|| self.pixel.get_render_state(state))
             .unwrap_or_default()
+    }
+
+    pub fn set_vertex_declaration(&mut self, decl: &VertexDeclaration) {
+        self.vertex.vertex_decl = Some(decl);
+    }
+
+    pub fn get_vertex_declaration(&self) -> *const VertexDeclaration {
+        self.vertex.vertex_decl.unwrap()
     }
 }
 

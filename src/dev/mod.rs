@@ -17,3 +17,5 @@ mod texture;
 pub use self::texture::Texture;
 
 pub mod state;
+
+pub mod shader;

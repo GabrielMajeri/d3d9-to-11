@@ -10,6 +10,7 @@ use winapi::um::{
 use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
 
+use super::shader::VertexDeclaration;
 use super::state::{DeviceState, StateBlock};
 use super::{Surface, SurfaceData, SwapChain, Texture};
 
@@ -813,14 +814,31 @@ impl Device {
 
     // -- Vertex shader functions --
 
-    fn create_vertex_declaration() {
-        unimplemented!()
+    /// Creates a declaration of a vertex shader's input.
+    fn create_vertex_declaration(
+        &self,
+        elems: *const D3DVERTEXELEMENT9,
+        ret: *mut *mut VertexDeclaration,
+    ) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        *ret = VertexDeclaration::new(self, elems).into();
+
+        Error::Success
     }
-    fn set_vertex_declaration() {
-        unimplemented!()
+
+    /// Sets the current vertex declaration.
+    fn set_vertex_declaration(&mut self, decl: *mut VertexDeclaration) -> Error {
+        let decl = check_ref(decl)?;
+        self.istate.set_vertex_declaration(decl);
+        Error::Success
     }
-    fn get_vertex_declaration() {
-        unimplemented!()
+
+    /// Gets the current vertex declaration.
+    fn get_vertex_declaration(&self, ret: *mut *mut VertexDeclaration) -> Error {
+        let ret = check_mut_ref(ret)?;
+        *ret = com_ref(self.istate.get_vertex_declaration());
+        Error::Success
     }
 
     fn create_vertex_shader() {
