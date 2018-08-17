@@ -1,5 +1,5 @@
-use std::ptr;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::{mem, ptr};
 
 use winapi::shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::*};
 use winapi::um::{
@@ -231,7 +231,7 @@ impl Device {
     }
 
     /// Synchronises D3D9's render target views and depth / stencil view with D3D11.
-    fn update_render_targets(&self) {
+    fn update_render_targets(&mut self) {
         let num = self.render_targets.len() as u32;
 
         let mut rt_views = [ptr::null_mut(); 8];
@@ -251,7 +251,24 @@ impl Device {
             self.ctx.OMSetRenderTargets(num, rt_views.as_ptr(), ds_view);
         }
 
-        // TODO: we also have to set the new viewport.
+        // We also need to update the viewport.
+        let (width, height) = unsafe {
+            let rt = self.render_targets[0].as_ref().unwrap();
+            let mut desc = mem::uninitialized();
+            rt.get_desc(&mut desc);
+            (desc.Width, desc.Height)
+        };
+
+        let vp = D3DVIEWPORT9 {
+            X: 0,
+            Y: 0,
+            Width: width,
+            Height: height,
+            MinZ: 0.0,
+            MaxZ: 1.0,
+        };
+
+        self.set_viewport(&vp);
     }
 }
 
@@ -943,11 +960,18 @@ impl Device {
 
     // -- Output Merger state --
 
-    fn set_viewport() {
-        unimplemented!()
+    /// Sets a device's viewport.
+    fn set_viewport(&mut self, vp: *const D3DVIEWPORT9) -> Error {
+        let vp = check_ref(vp)?;
+        self.istate.set_viewport(vp);
+        Error::Success
     }
-    fn get_viewport() {
-        unimplemented!()
+
+    /// Retrieves the currently set viewport.
+    fn get_viewport(&self, ret: *mut D3DVIEWPORT9) -> Error {
+        let ret = check_mut_ref(ret)?;
+        *ret = self.istate.get_viewport();
+        Error::Success
     }
 
     fn set_scissor_rect() {

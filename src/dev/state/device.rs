@@ -12,6 +12,7 @@ use super::{PixelState, VertexState};
 pub struct DeviceState {
     vertex: VertexState,
     pixel: PixelState,
+    viewport: Option<D3DVIEWPORT9>,
 }
 
 impl DeviceState {
@@ -20,6 +21,7 @@ impl DeviceState {
         Self {
             vertex: VertexState::empty(),
             pixel: PixelState::empty(),
+            viewport: None,
         }
     }
 
@@ -33,6 +35,14 @@ impl DeviceState {
             .get_render_state(state)
             .or_else(|| self.pixel.get_render_state(state))
             .unwrap_or_default()
+    }
+
+    pub fn set_viewport(&mut self, vp: &D3DVIEWPORT9) {
+        self.viewport = Some(*vp);
+    }
+
+    pub fn get_viewport(&self) -> D3DVIEWPORT9 {
+        self.viewport.unwrap()
     }
 
     pub fn set_vertex_declaration(&mut self, decl: &VertexDeclaration) {
@@ -49,6 +59,8 @@ impl Default for DeviceState {
         Self {
             vertex: VertexState::default(),
             pixel: PixelState::default(),
+            // The default viewport depends on the default render target's size.
+            viewport: None,
         }
     }
 }
