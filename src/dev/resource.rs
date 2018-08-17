@@ -1,15 +1,16 @@
-use winapi::{
-    shared::{
-        d3d9::*,
-        d3d9types::{D3DPOOL, D3DRESOURCETYPE},
-    },
-    um::{d3d11::ID3D11DeviceContext, unknwnbase::IUnknownVtbl},
+use winapi::shared::{
+    d3d9::*,
+    d3d9types::{D3DPOOL, D3DRESOURCETYPE},
 };
+use winapi::um::unknwnbase::IUnknownVtbl;
 
 use com_impl::{implementation, ComInterface};
 
+use crate::core::*;
+use crate::d3d11;
+use crate::Error;
+
 use super::Device;
-use crate::{core::*, Error};
 
 /// Structure used as the base for all the D3D9 device resources.
 /// Use the `impl_resource` macro to implement its functions in inherited classes.
@@ -42,7 +43,7 @@ impl Resource {
     }
 
     /// Retrieves the immediate device context of the parent device.
-    pub fn device_context(&self) -> &ID3D11DeviceContext {
+    pub fn device_context(&self) -> &d3d11::DeviceContext {
         self.device().device_context()
     }
 

@@ -43,6 +43,12 @@ impl Texture2D {
 
         let fmt = d3d_format_to_dxgi(fmt);
 
+        if bind_flags == 0 && usage != D3D11_USAGE_STAGING {
+            // Even if the app doesn't end up using this in a shader,
+            // this is the only bind flag we could choose for it.
+            bind_flags |= D3D11_BIND_SHADER_RESOURCE;
+        }
+
         let desc = D3D11_TEXTURE2D_DESC {
             Width: dims.0,
             Height: dims.1,
@@ -68,6 +74,7 @@ impl Texture2D {
         Ok(Self { texture })
     }
 
+    /// Creates a render target view from this texture.
     pub fn create_rt_view(&self, device: &ID3D11Device) -> Result<ComPtr<ID3D11RenderTargetView>> {
         let resource = self.as_resource();
 
@@ -85,7 +92,7 @@ impl Texture2D {
 
     /// Creates a depth / stencil view from this texture.
     pub fn create_ds_view(&self, device: &ID3D11Device) -> Result<ComPtr<ID3D11DepthStencilView>> {
-        let resource = self.texture.upcast().as_mut();
+        let resource = self.as_resource();
 
         let view = unsafe {
             let mut ptr = ptr::null_mut();
@@ -100,7 +107,7 @@ impl Texture2D {
     }
 
     /// Retrieves this texture as a resource.
-    pub fn as_resource(&self) -> &mut ID3D11Resource {
+    pub fn as_resource(&self) -> *mut ID3D11Resource {
         self.texture.upcast().as_mut()
     }
 

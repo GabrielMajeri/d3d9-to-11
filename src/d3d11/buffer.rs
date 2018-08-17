@@ -1,4 +1,4 @@
-use std::ptr;
+use std::{mem, ptr};
 
 use winapi::shared::d3d9types::*;
 use winapi::um::d3d11::*;
@@ -46,5 +46,19 @@ impl Buffer {
         };
 
         Ok(Self { buffer })
+    }
+
+    /// Retrieves this buffer as a resource.
+    pub fn as_resource(&self) -> *mut ID3D11Resource {
+        self.buffer.upcast().as_mut()
+    }
+
+    /// Retrieves the description of this buffer.
+    pub fn desc(&self) -> D3D11_BUFFER_DESC {
+        unsafe {
+            let mut buf = mem::uninitialized();
+            self.buffer.GetDesc(&mut buf);
+            buf
+        }
     }
 }

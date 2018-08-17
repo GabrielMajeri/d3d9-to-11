@@ -127,7 +127,7 @@ impl Device {
             width,
             height,
             1,
-            0,
+            D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY,
             D3DFMT_A8R8G8B8,
             D3DPOOL_SYSTEMMEM,
         );
@@ -135,7 +135,7 @@ impl Device {
         let surface = texture.get_level(0);
 
         // Map the pixel data directly to memory.
-        let (ptr, stride) = surface.map();
+        let (ptr, stride) = surface.map(D3DLOCK_DISCARD);
 
         let pixels = unsafe {
             let size = height as usize * stride;
@@ -201,11 +201,11 @@ impl Surface {
 
     /// Maps the surface to CPU-accessible memory.
     /// Returns a pointer to the data and the data's stride.
-    fn map<T>(&self) -> (*mut T, usize) {
+    fn map<T>(&self, flags: u32) -> (*mut T, usize) {
         unsafe {
             let mut lr = mem::uninitialized();
 
-            let result = self.surface.LockRect(&mut lr, ptr::null(), 0);
+            let result = self.surface.LockRect(&mut lr, ptr::null(), flags);
             assert_eq!(result, 0, "Failed to map surface");
 
             let ptr = lr.pBits as *mut T;

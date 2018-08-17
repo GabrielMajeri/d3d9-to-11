@@ -74,7 +74,7 @@ impl Surface {
     }
 
     /// Retrieves a reference to the subresource this surface represents.
-    pub fn subresource(&self) -> (&mut ID3D11Resource, u32) {
+    pub fn subresource(&mut self) -> (*mut ID3D11Resource, u32) {
         let resource = self.texture.as_resource();
         (resource, self.subresource)
     }
@@ -144,12 +144,12 @@ impl Surface {
         ret.Format = dxgi_format_to_d3d(desc.Format);
         ret.Type = D3DRTYPE_SURFACE;
 
-        ret.Usage = if desc.BindFlags & D3D11_BIND_RENDER_TARGET != 0 {
-            D3DUSAGE_RENDERTARGET
-        } else if desc.BindFlags & D3D11_BIND_DEPTH_STENCIL != 0 {
-            D3DUSAGE_DEPTHSTENCIL
-        } else {
-            0
+        use self::SurfaceData::*;
+        ret.Usage = match self.data {
+            RenderTarget(_) => D3DUSAGE_RENDERTARGET,
+            DepthStencil(_) => D3DUSAGE_DEPTHSTENCIL,
+            SubTexture(tex) => unsafe { (*tex).usage() },
+            None => 0,
         };
 
         ret.Pool = self.resource.pool();

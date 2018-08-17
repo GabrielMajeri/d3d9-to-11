@@ -1,15 +1,8 @@
-use std::{
-    mem, ptr,
-    sync::atomic::{AtomicU32, Ordering},
-};
+use std::ptr;
+use std::sync::atomic::{AtomicU32, Ordering};
 
-use winapi::{
-    shared::{d3d9::*, d3d9types::*, windef::RECT, winerror},
-    um::{
-        d3d11::*,
-        unknwnbase::{IUnknown, IUnknownVtbl},
-    },
-};
+use winapi::shared::{d3d9::*, d3d9types::*, windef::RECT};
+use winapi::um::unknwnbase::{IUnknown, IUnknownVtbl};
 
 use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
@@ -30,6 +23,7 @@ pub struct Texture {
     texture: d3d11::Texture2D,
     // Number of mip map levels in this texture.
     levels: u32,
+    usage: u32,
 }
 
 impl Texture {
@@ -39,6 +33,7 @@ impl Texture {
         pool: D3DPOOL,
         texture: d3d11::Texture2D,
         levels: u32,
+        usage: u32,
     ) -> ComPtr<Self> {
         let texture = Self {
             __vtable: Box::new(Self::create_vtable()),
@@ -46,6 +41,7 @@ impl Texture {
             resource: Resource::new(device, pool, D3DRTYPE_TEXTURE),
             texture,
             levels,
+            usage,
         };
 
         unsafe { new_com_interface(texture) }
@@ -54,6 +50,11 @@ impl Texture {
     /// Retrieves the pool in which this texture was allocated.
     pub fn pool(&self) -> D3DPOOL {
         self.resource.pool()
+    }
+
+    /// Retrieves the usage of this texture.
+    pub fn usage(&self) -> u32 {
+        self.usage
     }
 }
 
@@ -131,59 +132,10 @@ impl Texture {
     ) -> Error {
         let ret = check_mut_ref(ret)?;
 
-        let mut ty = 0;
+        let resource = self.texture.as_resource();
+        let ctx = self.resource.device_context();
 
-        if flags & D3DLOCK_READONLY != 0 {
-            error!("Reading data from a texture might not work");
-            ty |= D3D11_MAP_READ;
-        } else {
-            ty |= match self.pool() {
-                D3DPOOL_MANAGED => D3D11_MAP_WRITE_DISCARD,
-                D3DPOOL_SYSTEMMEM => D3D11_MAP_WRITE | D3D11_MAP_READ,
-                pool => {
-                    error!("Cannot lock texture in memory pool {}", pool);
-                    return Error::InvalidCall;
-                }
-            };
-
-            if flags & D3DLOCK_DISCARD != 0 {
-                ty |= D3D11_MAP_WRITE_DISCARD;
-            }
-
-            if flags & D3DLOCK_NOOVERWRITE != 0 {
-                ty |= D3D11_MAP_WRITE_NO_OVERWRITE;
-            }
-        }
-
-        let mut fl = 0;
-
-        if flags & D3DLOCK_DONOTWAIT != 0 {
-            fl |= D3D11_MAP_FLAG_DO_NOT_WAIT;
-        }
-
-        // Try to map the subresource.
-        let mapped = unsafe {
-            let resource = self.texture.as_resource();
-
-            let mut mapped = mem::uninitialized();
-
-            let result = self
-                .resource
-                .device_context()
-                .Map(resource, level, ty, fl, &mut mapped);
-
-            match result {
-                0 => Ok(mapped),
-                winerror::DXGI_ERROR_WAS_STILL_DRAWING => Err(Error::WasStillDrawing),
-                hr => Err(check_hresult(hr, "Failed to map surface")),
-            }
-        }?;
-
-        // TODO: we need special handling for pitch with DXT texture formats.
-        *ret = D3DLOCKED_RECT {
-            Pitch: mapped.RowPitch as i32,
-            pBits: mapped.pData,
-        };
+        *ret = ctx.map(resource, level, flags, self.usage)?;
 
         Error::Success
     }
@@ -191,10 +143,9 @@ impl Texture {
     /// Unlocks the locked rectangle of memory.
     pub fn unlock_rect(&self, level: u32) -> Error {
         let resource = self.texture.as_resource();
+        let ctx = self.resource.device_context();
 
-        unsafe {
-            self.resource.device_context().Unmap(resource, level);
-        }
+        ctx.unmap(resource, level);
 
         Error::Success
     }

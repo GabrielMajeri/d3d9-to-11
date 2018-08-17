@@ -144,7 +144,7 @@ impl Device {
     }
 
     /// Retrieves a reference to the immediate device context.
-    pub fn device_context(&self) -> &ID3D11DeviceContext {
+    pub fn device_context(&self) -> &d3d11::DeviceContext {
         &self.ctx
     }
 
@@ -625,7 +625,7 @@ impl Device {
             0,
         )?;
 
-        *ret = Texture::new(self, pool, texture, levels).into();
+        *ret = Texture::new(self, pool, texture, levels, usage).into();
 
         Error::Success
     }
@@ -802,7 +802,7 @@ impl Device {
 
         let buffer = d3d11::Buffer::new(&self.device, len, usage, pool, D3D11_BIND_VERTEX_BUFFER)?;
 
-        *ret = VertexBuffer::new(self, pool, fvf, buffer).into();
+        *ret = VertexBuffer::new(self, pool, fvf, buffer, usage).into();
 
         Error::Success
     }
@@ -826,7 +826,7 @@ impl Device {
 
         let buffer = d3d11::Buffer::new(&self.device, len, usage, pool, D3D11_BIND_INDEX_BUFFER)?;
 
-        *ret = IndexBuffer::new(self, fmt, pool, buffer).into();
+        *ret = IndexBuffer::new(self, fmt, pool, buffer, usage).into();
 
         Error::Success
     }
