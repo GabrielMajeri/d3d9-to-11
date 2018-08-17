@@ -29,5 +29,7 @@ pub mod core;
 mod dev;
 pub use self::dev::Device;
 
+mod d3d11;
+
 mod entry;
 pub use self::entry::*;

@@ -14,8 +14,9 @@ use winapi::{
 use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
 
-use super::{resource::Resource, Device, Surface, SurfaceData};
-use crate::{core::*, Error};
+use crate::{core::*, d3d11, Error};
+
+use super::{Device, Resource, Surface, SurfaceData};
 
 /// Structure containing an image and its mip sub-levels.
 ///
@@ -26,8 +27,7 @@ use crate::{core::*, Error};
 pub struct Texture {
     resource: Resource,
     refs: AtomicU32,
-    // Pointer to the corresponding D3D11 interface.
-    texture: ComPtr<ID3D11Texture2D>,
+    texture: d3d11::Texture2D,
     // Number of mip map levels in this texture.
     levels: u32,
 }
@@ -37,7 +37,7 @@ impl Texture {
     pub fn new(
         device: *const Device,
         pool: D3DPOOL,
-        texture: ComPtr<ID3D11Texture2D>,
+        texture: d3d11::Texture2D,
         levels: u32,
     ) -> ComPtr<Self> {
         let texture = Self {
@@ -163,7 +163,7 @@ impl Texture {
 
         // Try to map the subresource.
         let mapped = unsafe {
-            let resource = self.texture.upcast().as_mut();
+            let resource = self.texture.as_resource();
 
             let mut mapped = mem::uninitialized();
 
@@ -190,7 +190,7 @@ impl Texture {
 
     /// Unlocks the locked rectangle of memory.
     pub fn unlock_rect(&self, level: u32) -> Error {
-        let resource = self.texture.upcast().as_mut();
+        let resource = self.texture.as_resource();
 
         unsafe {
             self.resource.device_context().Unmap(resource, level);

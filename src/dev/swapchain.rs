@@ -3,23 +3,18 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
-use winapi::{
-    shared::{d3d9::*, d3d9types::*, dxgi::*, dxgitype::*, windef::HWND, winerror},
-    um::{
-        d3d11::ID3D11Texture2D,
-        unknwnbase::{IUnknown, IUnknownVtbl},
-        winuser,
-    },
-    Interface,
-};
+use winapi::shared::{d3d9::*, d3d9types::*, dxgi::*, dxgitype::*, windef::HWND, winerror};
+use winapi::um::d3d11::*;
+use winapi::um::unknwnbase::{IUnknown, IUnknownVtbl};
+use winapi::um::winuser;
+use winapi::Interface;
 
 use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
 
-use crate::{
-    core::{fmt::d3d_display_format_to_dxgi, msample::d3d9_to_dxgi_samples, *},
-    Error, Result,
-};
+use crate::core::{fmt::d3d_display_format_to_dxgi, msample::d3d9_to_dxgi_samples, *};
+use crate::d3d11;
+use crate::{Error, Result};
 
 use super::{Device, Surface, SurfaceData};
 
@@ -48,7 +43,7 @@ impl SwapChain {
     /// Creates a new swap chain with the given parameters, which presents into a window.
     pub fn new(
         parent: &Device,
-        device: &mut IUnknown,
+        device: &ID3D11Device,
         factory: &IDXGIFactory,
         pp: &mut D3DPRESENT_PARAMETERS,
         window: HWND,
@@ -167,8 +162,11 @@ impl SwapChain {
         let swap_chain = unsafe {
             let mut ptr = ptr::null_mut();
 
-            let result = factory.CreateSwapChain(device, &mut sc_desc, &mut ptr);
-
+            let result = factory.CreateSwapChain(
+                device as *const _ as *mut IUnknown,
+                &mut sc_desc,
+                &mut ptr,
+            );
             check_hresult(result, "Failed to create swap chain")?;
 
             ComPtr::new(ptr)
@@ -192,7 +190,7 @@ impl SwapChain {
     }
 
     /// Retrieves a buffer in this swap chain.
-    pub fn buffer(&self, id: u32) -> Result<ComPtr<ID3D11Texture2D>> {
+    pub fn buffer(&self, id: u32) -> Result<d3d11::Texture2D> {
         let mut ptr: *mut ID3D11Texture2D = ptr::null_mut();
         let uuid = ID3D11Texture2D::uuidof();
 
@@ -202,7 +200,7 @@ impl SwapChain {
 
         check_hresult(result, "Failed to retrieve swap chain buffer")?;
 
-        Ok(ComPtr::new(ptr))
+        Ok(ComPtr::new(ptr).into())
     }
 }
 

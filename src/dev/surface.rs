@@ -1,24 +1,17 @@
-use std::{
-    mem,
-    sync::atomic::{AtomicU32, Ordering},
-};
+use std::sync::atomic::{AtomicU32, Ordering};
 
-use winapi::{
-    shared::{d3d9::*, d3d9types::*, guiddef::GUID, windef::RECT},
-    um::{
-        d3d11::*,
-        unknwnbase::{IUnknown, IUnknownVtbl},
-    },
-};
+use winapi::shared::{d3d9::*, d3d9types::*, guiddef::GUID, windef::RECT};
+use winapi::um::d3d11::*;
+use winapi::um::unknwnbase::{IUnknown, IUnknownVtbl};
 
 use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
 
-use super::{resource::Resource, Device, Texture};
-use crate::{
-    core::{fmt::dxgi_format_to_d3d, msample::dxgi_samples_to_d3d9, *},
-    Error,
-};
+use crate::core::{fmt::dxgi_format_to_d3d, msample::dxgi_samples_to_d3d9, *};
+use crate::d3d11;
+use crate::Error;
+
+use super::{Device, Resource, Texture};
 
 /// Represents a 2D contiguous array of pixels.
 #[interface(IDirect3DSurface9)]
@@ -26,7 +19,7 @@ pub struct Surface {
     resource: Resource,
     refs: AtomicU32,
     // Reference to the texture we own, or our parent texture.
-    texture: ComPtr<ID3D11Texture2D>,
+    texture: d3d11::Texture2D,
     // An index representing the sub-resource we are owning.
     // Can be 0 to indicate a top-level resource.
     subresource: u32,
@@ -53,7 +46,7 @@ impl Surface {
     /// Creates a new surface from a D3D11 2D texture, and possibly some extra data.
     pub fn new(
         device: *const Device,
-        texture: ComPtr<ID3D11Texture2D>,
+        texture: d3d11::Texture2D,
         subresource: u32,
         data: SurfaceData,
     ) -> ComPtr<Self> {
@@ -82,7 +75,7 @@ impl Surface {
 
     /// Retrieves a reference to the subresource this surface represents.
     pub fn subresource(&self) -> (&mut ID3D11Resource, u32) {
-        let resource = self.texture.upcast().as_mut();
+        let resource = self.texture.as_resource();
         (resource, self.subresource)
     }
 
@@ -143,12 +136,7 @@ impl Surface {
     pub fn get_desc(&self, ret: *mut D3DSURFACE_DESC) -> Error {
         let ret = check_mut_ref(ret)?;
 
-        // D3D11 already stores the information we need.
-        let desc = unsafe {
-            let mut desc = mem::uninitialized();
-            self.texture.GetDesc(&mut desc);
-            desc
-        };
+        let desc = self.texture.desc();
 
         ret.Width = desc.Width;
         ret.Height = desc.Height;
@@ -158,8 +146,10 @@ impl Surface {
 
         ret.Usage = if desc.BindFlags & D3D11_BIND_RENDER_TARGET != 0 {
             D3DUSAGE_RENDERTARGET
-        } else {
+        } else if desc.BindFlags & D3D11_BIND_DEPTH_STENCIL != 0 {
             D3DUSAGE_DEPTHSTENCIL
+        } else {
+            0
         };
 
         ret.Pool = self.resource.pool();

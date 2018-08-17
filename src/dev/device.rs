@@ -12,9 +12,10 @@ use comptr::ComPtr;
 
 use super::shader::VertexDeclaration;
 use super::state::{DeviceState, StateBlock};
-use super::{Surface, SurfaceData, SwapChain, Texture};
+use super::*;
 
-use crate::core::{fmt::d3d_format_to_dxgi, msample::d3d9_to_dxgi_samples, *};
+use crate::core::*;
+use crate::d3d11;
 use crate::{Error, Result};
 
 /// Structure representing a logical graphics device.
@@ -29,9 +30,9 @@ pub struct Device {
     // to share the same adapter.
     adapter: *const Adapter,
     // The equivalent interface from D3D11.
-    device: ComPtr<ID3D11Device>,
+    device: d3d11::Device,
     // The context in which commands are run.
-    ctx: ComPtr<ID3D11DeviceContext>,
+    ctx: d3d11::DeviceContext,
     // Store the creation params, since the app might request them later.
     creation_params: D3DDEVICE_CREATION_PARAMETERS,
     // The DXGI factory which was used to create this device.
@@ -61,12 +62,8 @@ impl Device {
         pp: &mut D3DPRESENT_PARAMETERS,
         factory: ComPtr<IDXGIFactory>,
     ) -> Result<ComPtr<Device>> {
-        let device = adapter.device();
-        let ctx = unsafe {
-            let mut ptr = ptr::null_mut();
-            device.GetImmediateContext(&mut ptr);
-            ComPtr::new(ptr)
-        };
+        let device = d3d11::Device::new(adapter.device());
+        let ctx = d3d11::DeviceContext::new(&device);
 
         // Determine which window to render to.
         // TODO: track the focus window and use it to disable rendering
@@ -180,24 +177,9 @@ impl Device {
     }
 
     /// Helper function for creating render targets.
-    fn create_render_target_helper(
-        &self,
-        texture: ComPtr<ID3D11Texture2D>,
-    ) -> Result<ComPtr<Surface>> {
+    fn create_render_target_helper(&self, texture: d3d11::Texture2D) -> Result<ComPtr<Surface>> {
         // Create a render target view into the texture.
-        let rt_view = unsafe {
-            let resource = texture.upcast().as_mut();
-
-            let mut ptr = ptr::null_mut();
-
-            let result = self
-                .device
-                .CreateRenderTargetView(resource, ptr::null(), &mut ptr);
-
-            check_hresult(result, "Failed to create render target view")?;
-
-            ComPtr::new(ptr)
-        };
+        let rt_view = texture.create_rt_view(&self.device)?;
 
         let data = SurfaceData::RenderTarget(rt_view);
         let surface = Surface::new(self, texture, 0, data);
@@ -335,14 +317,13 @@ impl Device {
         pp: *mut D3DPRESENT_PARAMETERS,
         ret: *mut *mut SwapChain,
     ) -> Error {
-        let device = self.device.upcast().as_mut();
         let factory = self.factory.as_mut();
         let pp = check_mut_ref(pp)?;
         let window = self.window;
 
         let ret = check_mut_ref(ret)?;
 
-        *ret = SwapChain::new(self, device, factory, pp, window)?.into();
+        *ret = SwapChain::new(self, &self.device, factory, pp, window)?.into();
 
         Error::Success
     }
@@ -419,32 +400,16 @@ impl Device {
             return Error::InvalidCall;
         }
 
-        let device = &self.device;
-
         // First we need to create a texture we will render to.
-        let texture = unsafe {
-            let fmt = d3d_format_to_dxgi(fmt);
-
-            let desc = D3D11_TEXTURE2D_DESC {
-                Width: width,
-                Height: height,
-                MipLevels: 1,
-                ArraySize: 1,
-                Format: fmt,
-                SampleDesc: d3d9_to_dxgi_samples(ms_ty, ms_qlt),
-                Usage: D3D11_USAGE_DEFAULT,
-                BindFlags: D3D11_BIND_RENDER_TARGET,
-                CPUAccessFlags: 0,
-                MiscFlags: 0,
-            };
-
-            let mut ptr = ptr::null_mut();
-
-            let result = device.CreateTexture2D(&desc, ptr::null(), &mut ptr);
-            check_hresult(result, "Failed to create 2D texture for render target")?;
-
-            ComPtr::new(ptr)
-        };
+        let texture = d3d11::Texture2D::new(
+            &self.device,
+            (width, height, 1),
+            D3DUSAGE_RENDERTARGET,
+            fmt,
+            D3DPOOL_DEFAULT,
+            ms_ty,
+            ms_qlt,
+        )?;
 
         *ret = self.create_render_target_helper(texture)?.into();
 
@@ -506,8 +471,8 @@ impl Device {
         width: u32,
         height: u32,
         fmt: D3DFORMAT,
-        _ms_ty: D3DMULTISAMPLE_TYPE,
-        _ms_qlt: u32,
+        ms_ty: D3DMULTISAMPLE_TYPE,
+        ms_qlt: u32,
         discard: u32,
         ret: *mut *mut Surface,
         shared_handle: usize,
@@ -523,43 +488,17 @@ impl Device {
             error!("Discarding depth/stencil buffer not supported");
         }
 
-        let texture = unsafe {
-            let fmt = d3d_format_to_dxgi(fmt);
+        let texture = d3d11::Texture2D::new(
+            &self.device,
+            (width, height, 1),
+            D3DUSAGE_DEPTHSTENCIL,
+            fmt,
+            D3DPOOL_DEFAULT,
+            ms_ty,
+            ms_qlt,
+        )?;
 
-            let desc = D3D11_TEXTURE2D_DESC {
-                Width: width,
-                Height: height,
-                MipLevels: 1,
-                ArraySize: 1,
-                Format: fmt,
-                // D/S buffers cannot be multisampled.
-                SampleDesc: d3d9_to_dxgi_samples(1, 0),
-                Usage: D3D11_USAGE_DEFAULT,
-                BindFlags: D3D11_BIND_DEPTH_STENCIL,
-                CPUAccessFlags: 0,
-                MiscFlags: 0,
-            };
-
-            let mut ptr = ptr::null_mut();
-
-            let result = self.device.CreateTexture2D(&desc, ptr::null(), &mut ptr);
-            check_hresult(result, "Failed to create depth / stencil buffer")?;
-
-            ComPtr::new(ptr)
-        };
-
-        let ds_view = unsafe {
-            let resource = texture.upcast().as_mut();
-
-            let mut ptr = ptr::null_mut();
-
-            let result = self
-                .device
-                .CreateDepthStencilView(resource, ptr::null(), &mut ptr);
-            check_hresult(result, "Failed to create depth / stencil view")?;
-
-            ComPtr::new(ptr)
-        };
+        let ds_view = texture.create_ds_view(&self.device)?;
 
         let data = SurfaceData::DepthStencil(ds_view);
 
@@ -598,7 +537,7 @@ impl Device {
 
     // -- Surface manipulation functions --
 
-    /// Copies a surface's region to
+    /// Copies a surface's region to another surface.
     fn update_surface(
         &self,
         src: *mut Surface,
@@ -670,63 +609,21 @@ impl Device {
     ) -> Error {
         let ret = check_mut_ref(ret)?;
 
-        if usage != 0 {
-            unimplemented!("Texture usage flags not yet implemented: {:b}", usage);
-        }
-
         if shared_handle != 0 {
             error!("Shared resources are not supported");
             return Error::InvalidCall;
         }
 
-        // TODO: we should extract a function from the texture creation code
-        // used for render targets and d/s buffers.
-        let texture = unsafe {
-            let fmt = d3d_format_to_dxgi(fmt);
-
-            let mut bind_flags = D3D11_BIND_SHADER_RESOURCE;
-            let mut usage = D3D11_USAGE_DEFAULT;
-            let mut cpu_flags = 0;
-
-            match pool {
-                // Default resources are placed in VRAM.
-                D3DPOOL_DEFAULT => (),
-                // Managed resources are placed in VRAM if possible, and are backed by system RAM.
-                D3DPOOL_MANAGED => {
-                    usage = D3D11_USAGE_DYNAMIC;
-                    cpu_flags |= D3D11_CPU_ACCESS_WRITE;
-                }
-                // SystemMem resources are stored in RAM.
-                // Because of this, they are not accessible in shaders.
-                D3DPOOL_SYSTEMMEM => {
-                    usage = D3D11_USAGE_STAGING;
-                    cpu_flags |= D3D11_CPU_ACCESS_WRITE | D3D11_CPU_ACCESS_READ;
-                    bind_flags = 0;
-                }
-                _ => error!("Unsupported memory pool: {}", pool),
-            }
-
-            let desc = D3D11_TEXTURE2D_DESC {
-                Width: width,
-                Height: height,
-                MipLevels: levels,
-                ArraySize: 1,
-                Format: fmt,
-                // D3D9 does not have multisampled textures.
-                SampleDesc: d3d9_to_dxgi_samples(0, 0),
-                Usage: usage,
-                BindFlags: bind_flags,
-                CPUAccessFlags: cpu_flags,
-                MiscFlags: 0,
-            };
-
-            let mut ptr = ptr::null_mut();
-
-            let result = self.device.CreateTexture2D(&desc, ptr::null(), &mut ptr);
-            check_hresult(result, "Failed to create 2D texture")?;
-
-            ComPtr::new(ptr)
-        };
+        let texture = d3d11::Texture2D::new(
+            &self.device,
+            (width, height, levels),
+            usage,
+            fmt,
+            pool,
+            // D3D9 does not have multisampled textures.
+            0,
+            0,
+        )?;
 
         *ret = Texture::new(self, pool, texture, levels).into();
 
