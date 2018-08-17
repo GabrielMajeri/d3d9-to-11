@@ -11,27 +11,17 @@ macro_rules! impl_state {
         $(#[$attr])*
         #[derive(Debug, Copy, Clone, Eq, PartialEq)]
         pub struct $sname {
-            $($rs_name: Option<u32>,)*
-            $($ss_name: Option<u32>,)*
-            $($ts_name: Option<u32>,)*
+            $($rs_name: u32,)*
+            $($ss_name: u32,)*
+            $($ts_name: u32,)*
             $(pub(super) $var: Option<$ty>,)*
         }
 
         impl $sname {
-            /// Creates a new state structure which initially tracks no state.
-            pub fn empty() -> Self {
-                Self {
-                    $($rs_name: None,)*
-                    $($ss_name: None,)*
-                    $($ts_name: None,)*
-                    $($var: None,)*
-                }
-            }
-
             pub fn set_render_state(&mut self, state: D3DRENDERSTATETYPE, value: u32) {
                 match state {
                     $($rs_enum => {
-                        self.$rs_name = Some(value);
+                        self.$rs_name = value;
                     },)*
                     _ => (),
                 }
@@ -39,7 +29,7 @@ macro_rules! impl_state {
 
             pub fn get_render_state(&self, state: D3DRENDERSTATETYPE) -> Option<u32> {
                 match state {
-                    $($rs_enum => self.$rs_name,)*
+                    $($rs_enum => Some(self.$rs_name),)*
                     _ => None,
                 }
             }
@@ -48,9 +38,9 @@ macro_rules! impl_state {
         impl Default for $sname {
             fn default() -> Self {
                 Self {
-                    $($rs_name: Some($rs_default),)*
-                    $($ss_name: Some($ss_default),)*
-                    $($ts_name: Some($ts_default),)*
+                    $($rs_name: $rs_default,)*
+                    $($ss_name: $ss_default,)*
+                    $($ts_name: $ts_default,)*
                     $($var: None,)*
                 }
             }

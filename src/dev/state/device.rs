@@ -16,15 +16,6 @@ pub struct DeviceState {
 }
 
 impl DeviceState {
-    /// Creates a new empty device state.
-    pub(super) fn empty() -> Self {
-        Self {
-            vertex: VertexState::empty(),
-            pixel: PixelState::empty(),
-            viewport: None,
-        }
-    }
-
     pub fn set_render_state(&mut self, state: D3DRENDERSTATETYPE, value: u32) {
         self.vertex.set_render_state(state, value);
         self.pixel.set_render_state(state, value);

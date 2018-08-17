@@ -9,41 +9,23 @@ use comptr::ComPtr;
 use crate::dev::Device;
 use crate::{core::*, Error, Result};
 
-use super::{DeviceState, PixelState, VertexState};
-
 /// Object which records some portions of a device's state.
 #[interface(IDirect3DStateBlock9)]
 pub struct StateBlock {
     refs: AtomicU32,
     device: *mut Device,
-    state: RenderState,
-}
-
-/// Enum containing (possibly a part of) the render state.
-enum RenderState {
-    All(DeviceState),
-    Pixel(PixelState),
-    Vertex(VertexState),
 }
 
 impl StateBlock {
     /// Creates a new empty state block.
-    pub fn new(device: &mut Device, ty: D3DSTATEBLOCKTYPE) -> Result<ComPtr<Self>> {
-        let state = match ty {
-            D3DSBT_ALL => RenderState::All(DeviceState::empty()),
-            D3DSBT_PIXELSTATE => RenderState::Pixel(PixelState::empty()),
-            D3DSBT_VERTEXSTATE => RenderState::Vertex(VertexState::empty()),
-            _ => return Err(Error::InvalidCall),
-        };
-
-        let sb = Self {
+    pub fn new(device: &mut Device, _ty: D3DSTATEBLOCKTYPE) -> Result<ComPtr<Self>> {
+        let _sb = Self {
             __vtable: Box::new(Self::create_vtable()),
             refs: AtomicU32::new(1),
             device,
-            state,
         };
 
-        Ok(unsafe { new_com_interface(sb) })
+        unimplemented!();
     }
 }
 
