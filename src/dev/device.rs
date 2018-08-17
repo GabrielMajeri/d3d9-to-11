@@ -783,12 +783,52 @@ impl Device {
         unimplemented!()
     }
 
-    fn create_vertex_buffer() {
-        unimplemented!()
+    /// Creates a new vertex buffer.
+    fn create_vertex_buffer(
+        &self,
+        len: u32,
+        usage: u32,
+        fvf: u32,
+        pool: D3DPOOL,
+        ret: *mut *mut VertexBuffer,
+        shared_handle: usize,
+    ) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        if shared_handle != 0 {
+            error!("Shared resources are not supported");
+            return Error::InvalidCall;
+        }
+
+        let buffer = d3d11::Buffer::new(&self.device, len, usage, pool, D3D11_BIND_VERTEX_BUFFER)?;
+
+        *ret = VertexBuffer::new(self, pool, fvf, buffer).into();
+
+        Error::Success
     }
 
-    fn create_index_buffer() {
-        unimplemented!()
+    /// Creates a new index buffer.
+    fn create_index_buffer(
+        &self,
+        len: u32,
+        usage: u32,
+        fmt: D3DFORMAT,
+        pool: D3DPOOL,
+        ret: *mut *mut IndexBuffer,
+        shared_handle: usize,
+    ) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        if shared_handle != 0 {
+            error!("Shared resources are not supported");
+            return Error::InvalidCall;
+        }
+
+        let buffer = d3d11::Buffer::new(&self.device, len, usage, pool, D3D11_BIND_INDEX_BUFFER)?;
+
+        *ret = IndexBuffer::new(self, fmt, pool, buffer).into();
+
+        Error::Success
     }
 
     fn set_stream_source() {

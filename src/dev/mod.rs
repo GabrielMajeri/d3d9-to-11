@@ -19,3 +19,6 @@ pub use self::texture::Texture;
 pub mod state;
 
 pub mod shader;
+
+mod buffer;
+pub use self::buffer::{IndexBuffer, VertexBuffer};
