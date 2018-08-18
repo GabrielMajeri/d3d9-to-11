@@ -50,42 +50,40 @@ macro_rules! impl_state {
 
             /// Sets a sampler state variable.
             pub fn set_sampler_state(&mut self, sampler: u32, ty: D3DSAMPLERSTATETYPE, value: u32) {
-                let ss = &mut self.ss[sampler as usize];
-
-                match ty {
-                    $($ss_enum => ss.$ss_name = value,)*
-                    _ => (),
-                }
+                self.ss.get_mut(sampler as usize)
+                    .map(|ss| match ty {
+                        $($ss_enum => ss.$ss_name = value,)*
+                        _ => (),
+                    });
             }
 
             /// Retrieves the value of a sampler state variable.
             pub fn get_sampler_state(&self, sampler: u32, ty: D3DSAMPLERSTATETYPE) -> u32 {
-                let ss = &self.ss[sampler as usize];
-
-                match ty {
-                    $($ss_enum => ss.$ss_name,)*
-                    _ => 0,
-                }
+                self.ss.get(sampler as usize)
+                    .map(|ss| match ty {
+                        $($ss_enum => ss.$ss_name,)*
+                        _ => 0,
+                    })
+                    .unwrap_or_default()
             }
 
             /// Sets a texture stage state variable.
             pub fn set_texture_stage_state(&mut self, stage: u32, ty: D3DTEXTURESTAGESTATETYPE, value: u32) {
-                let ts = &mut self.ts[stage as usize];
-
-                match ty {
-                    $($ts_enum => ts.$ts_name = value,)*
-                    _ => (),
-                }
+                self.ts.get_mut(stage as usize)
+                    .map(|ts| match ty {
+                        $($ts_enum => ts.$ts_name = value,)*
+                        _ => (),
+                    });
             }
 
             /// Retrieves the value of a texture stage state variable.
             pub fn get_texture_stage_state(&self, stage: u32, ty: D3DTEXTURESTAGESTATETYPE) -> u32 {
-                let ts = &self.ts[stage as usize];
-
-                match ty {
-                    $($ts_enum => ts.$ts_name,)*
-                    _ => 0,
-                }
+                self.ts.get(stage as usize)
+                    .map(|ts| match ty {
+                        $($ts_enum => ts.$ts_name,)*
+                        _ => 0,
+                    })
+                    .unwrap_or_default()
             }
         }
 
