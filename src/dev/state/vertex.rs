@@ -1,3 +1,5 @@
+use std::ptr;
+
 use winapi::shared::d3d9types::*;
 
 use crate::dev::shader::VertexDeclaration;
@@ -52,11 +54,12 @@ impl_state! {
         adaptive_tess_w: D3DRS_ADAPTIVETESS_W = 0,
         enable_adaptive_tess: D3DRS_ENABLEADAPTIVETESSELLATION = 0;
         // Sampler state
+        MAX_SAMPLERS = 4;
         dmap_offset: D3DSAMP_DMAPOFFSET = 256;
         // Texture state
         tex_coord_index: D3DTSS_TEXCOORDINDEX = 0,
         texture_transform_flags: D3DTSS_TEXTURETRANSFORMFLAGS = D3DTTFF_DISABLE;
         // Extra state variables
-        vertex_decl: *const VertexDeclaration,
+        vertex_decl: *const VertexDeclaration = ptr::null_mut(),
     }
 }

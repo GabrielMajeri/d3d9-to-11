@@ -75,6 +75,7 @@ impl_state! {
         dest_blend_alpha: D3DRS_DESTBLENDALPHA = D3DBLEND_ZERO,
         blend_op_alpha: D3DRS_BLENDOPALPHA = D3DBLENDOP_ADD;
         // Sampler state
+        MAX_SAMPLERS = 16;
         address_u: D3DSAMP_ADDRESSU = D3DTADDRESS_WRAP,
         address_v: D3DSAMP_ADDRESSV = D3DTADDRESS_WRAP,
         address_w: D3DSAMP_ADDRESSW = D3DTADDRESS_WRAP,

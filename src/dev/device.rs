@@ -704,6 +704,17 @@ impl Device {
         unimplemented!()
     }
 
+    /// Validates the current state of the device, or the state of the
+    /// currently recording state block, if any.
+    fn validate_device(&self, passes: *mut u32) -> Error {
+        let passes = check_mut_ref(passes)?;
+
+        // We do not emulate anything using multiple passes.
+        *passes = 1;
+
+        Error::Success
+    }
+
     // -- Hardware cursor functions --
 
     fn set_cursor_position() {
@@ -734,12 +745,6 @@ impl Device {
         *ret = self.istate.get_render_state(state);
 
         Error::Success
-    }
-
-    /// Validates the current state of the device, or the state of the
-    /// currently recording state block, if any.
-    fn validate_device() {
-        unimplemented!()
     }
 
     // -- Vertex shader functions --
@@ -863,11 +868,20 @@ impl Device {
 
     // -- Pixel shader functions --
 
-    fn set_sampler_state() {
-        unimplemented!()
+    /// Sets the state of a texture sampler.
+    fn set_sampler_state(&mut self, sampler: u32, ty: D3DSAMPLERSTATETYPE, value: u32) -> Error {
+        self.istate.set_sampler_state(sampler, ty, value);
+
+        Error::Success
     }
-    fn get_sampler_state() {
-        unimplemented!()
+
+    /// Gets the state of a texture sampler.
+    fn get_sampler_state(&self, sampler: u32, ty: D3DSAMPLERSTATETYPE, ret: *mut u32) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        *ret = self.istate.get_sampler_state(sampler, ty);
+
+        Error::Success
     }
 
     fn create_pixel_shader() {
@@ -904,11 +918,31 @@ impl Device {
     fn set_texture() {
         unimplemented!()
     }
-    fn get_texture_stage_state() {
-        unimplemented!()
+
+    /// Set a state for the texture bound to a certain stage.
+    fn set_texture_stage_state(
+        &mut self,
+        stage: u32,
+        ty: D3DTEXTURESTAGESTATETYPE,
+        value: u32,
+    ) -> Error {
+        self.istate.set_texture_stage_state(stage, ty, value);
+
+        Error::Success
     }
-    fn set_texture_stage_state() {
-        unimplemented!()
+
+    /// Retrieves the state of a certain texture stage.
+    fn get_texture_stage_state(
+        &self,
+        stage: u32,
+        ty: D3DTEXTURESTAGESTATETYPE,
+        ret: *mut u32,
+    ) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        *ret = self.istate.get_texture_stage_state(stage, ty);
+
+        Error::Success
     }
 
     // -- Output Merger state --
