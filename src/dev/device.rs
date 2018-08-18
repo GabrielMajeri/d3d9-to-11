@@ -551,6 +551,43 @@ impl Device {
         Error::Success
     }
 
+    /// Creates an off-screen surface.
+    fn create_offscreen_plain_surface(
+        &self,
+        width: u32,
+        height: u32,
+        fmt: D3DFORMAT,
+        pool: D3DPOOL,
+        ret: *mut *mut Surface,
+        shared_handle: usize,
+    ) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        if shared_handle != 0 {
+            error!("Shared resources are not supported");
+            return Error::InvalidCall;
+        }
+
+        let texture = d3d11::Texture2D::new(
+            &self.device,
+            (width, height, 1),
+            0,
+            fmt,
+            // We ignore the pool, we need this surface to always be CPU-readable
+            // (i.e. D3D11_USAGE_STAGING), since that's its intended use.
+            D3DPOOL_SYSTEMMEM,
+            0,
+            1,
+        )?;
+
+        let data = SurfaceData::None;
+
+        // We pass in the correct pool here, for storage purposes.
+        *ret = Surface::new(self, texture, 0, pool, data).into();
+
+        Error::Success
+    }
+
     // -- Surface manipulation functions --
 
     /// Copies a surface's region to another surface.
@@ -647,9 +684,6 @@ impl Device {
     }
 
     fn create_cube_texture() {
-        unimplemented!()
-    }
-    fn create_offscreen_plain_surface() {
         unimplemented!()
     }
     fn create_volume_texture() {
