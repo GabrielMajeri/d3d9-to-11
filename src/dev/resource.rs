@@ -17,6 +17,8 @@ use super::Device;
 pub struct Resource {
     /// Need to hold a reference back to the parent device.
     device: *const Device,
+    /// Usage flags of this resource.
+    usage: u32,
     /// Memory pool from which this resource was allocated.
     pool: D3DPOOL,
     /// The type of this resource.
@@ -28,9 +30,10 @@ pub struct Resource {
 
 impl Resource {
     /// Creates a new base resource structure.
-    pub fn new(device: *const Device, pool: D3DPOOL, ty: D3DRESOURCETYPE) -> Self {
+    pub fn new(device: *const Device, usage: u32, pool: D3DPOOL, ty: D3DRESOURCETYPE) -> Self {
         Self {
             device,
+            usage,
             pool,
             ty,
             priority: 0,
@@ -45,6 +48,11 @@ impl Resource {
     /// Retrieves the immediate device context of the parent device.
     pub fn device_context(&self) -> &d3d11::DeviceContext {
         self.device().device_context()
+    }
+
+    /// Retrieves the usage flags of this resource.
+    pub fn usage(&self) -> u32 {
+        self.usage
     }
 
     /// Retrieves the memory pool in which this resource belongs.

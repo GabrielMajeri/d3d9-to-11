@@ -20,7 +20,6 @@ pub struct Texture {
     base: BaseTexture,
     refs: AtomicU32,
     texture: d3d11::Texture2D,
-    usage: u32,
 }
 
 impl Texture {
@@ -34,18 +33,12 @@ impl Texture {
     ) -> ComPtr<Self> {
         let texture = Self {
             __vtable: Box::new(Self::create_vtable()),
-            base: BaseTexture::new(device, pool, D3DRTYPE_TEXTURE, levels),
+            base: BaseTexture::new(device, usage, pool, D3DRTYPE_TEXTURE, levels),
             refs: AtomicU32::new(1),
             texture,
-            usage,
         };
 
         unsafe { new_com_interface(texture) }
-    }
-
-    /// Retrieves the usage of this texture.
-    pub fn usage(&self) -> u32 {
-        self.usage
     }
 }
 
@@ -89,10 +82,11 @@ impl Texture {
 
         let device = self.device();
         let texture = self.texture.clone();
+        let usage = self.usage();
         let pool = self.pool();
-        let data = SurfaceData::SubTexture(self as *const _);
+        let data = SurfaceData::SubResource(level);
 
-        *ret = Surface::new(device, texture, level, pool, data).into();
+        *ret = Surface::new(device, texture, usage, pool, data).into();
 
         Error::Success
     }
@@ -111,7 +105,7 @@ impl Texture {
         let resource = self.texture.as_resource();
         let ctx = self.device_context();
 
-        *ret = ctx.map(resource, level, flags, self.usage)?;
+        *ret = ctx.map(resource, level, flags, self.usage())?;
 
         Error::Success
     }

@@ -19,7 +19,6 @@ pub struct VertexBuffer {
     refs: AtomicU32,
     fvf: u32,
     buffer: d3d11::Buffer,
-    usage: u32,
 }
 
 impl VertexBuffer {
@@ -33,11 +32,10 @@ impl VertexBuffer {
     ) -> ComPtr<Self> {
         let vb = Self {
             __vtable: Box::new(Self::create_vtable()),
-            resource: Resource::new(device, pool, D3DRTYPE_VERTEXBUFFER),
+            resource: Resource::new(device, usage, pool, D3DRTYPE_VERTEXBUFFER),
             refs: AtomicU32::new(1),
             fvf,
             buffer,
-            usage,
         };
 
         unsafe { new_com_interface(vb) }
@@ -73,7 +71,7 @@ impl VertexBuffer {
         ret.Format = D3DFMT_R32F;
         ret.FVF = self.fvf;
         ret.Pool = self.pool();
-        ret.Usage = self.usage;
+        ret.Usage = self.usage();
 
         Error::Success
     }
@@ -83,7 +81,7 @@ impl VertexBuffer {
 
         let resource = self.buffer.as_resource();
         let ctx = self.device_context();
-        let mapped = ctx.map(resource, 0, flags, self.usage)?;
+        let mapped = ctx.map(resource, 0, flags, self.usage())?;
 
         // TODO: allow buffers to be mapped multiple times.
         info!("Mapped vertex buffer");
@@ -110,7 +108,6 @@ pub struct IndexBuffer {
     refs: AtomicU32,
     fmt: D3DFORMAT,
     buffer: d3d11::Buffer,
-    usage: u32,
 }
 
 impl IndexBuffer {
@@ -124,11 +121,10 @@ impl IndexBuffer {
     ) -> ComPtr<Self> {
         let vb = Self {
             __vtable: Box::new(Self::create_vtable()),
-            resource: Resource::new(device, pool, D3DRTYPE_INDEXBUFFER),
+            resource: Resource::new(device, usage, pool, D3DRTYPE_INDEXBUFFER),
             refs: AtomicU32::new(1),
             fmt,
             buffer,
-            usage,
         };
 
         unsafe { new_com_interface(vb) }
@@ -163,7 +159,7 @@ impl IndexBuffer {
         ret.Size = desc.ByteWidth;
         ret.Format = self.fmt;
         ret.Pool = self.pool();
-        ret.Usage = self.usage;
+        ret.Usage = self.usage();
 
         Error::Success
     }
@@ -173,7 +169,7 @@ impl IndexBuffer {
 
         let resource = self.buffer.as_resource();
         let ctx = self.device_context();
-        let mapped = ctx.map(resource, 0, flags, self.usage)?;
+        let mapped = ctx.map(resource, 0, flags, self.usage())?;
 
         // TODO: allow buffers to be mapped multiple times.
         info!("Mapped index buffer");

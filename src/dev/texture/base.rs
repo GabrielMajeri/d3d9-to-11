@@ -15,9 +15,15 @@ pub struct BaseTexture {
 
 impl BaseTexture {
     /// Initializes a new base texture.
-    pub fn new(device: *const Device, pool: D3DPOOL, rtype: D3DRESOURCETYPE, levels: u32) -> Self {
+    pub fn new(
+        device: *const Device,
+        usage: u32,
+        pool: D3DPOOL,
+        rtype: D3DRESOURCETYPE,
+        levels: u32,
+    ) -> Self {
         Self {
-            resource: Resource::new(device, pool, rtype),
+            resource: Resource::new(device, usage, pool, rtype),
             levels,
         }
     }

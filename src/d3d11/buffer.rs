@@ -25,7 +25,7 @@ impl Buffer {
         pool: D3DPOOL,
         bind_flags: u32,
     ) -> Result<Self> {
-        let (usage, cpu_flags) = d3d_usage_to_d3d11(usage, pool)?;
+        let (usage, _, cpu_flags) = d3d_usage_to_d3d11(usage, pool)?;
 
         let desc = D3D11_BUFFER_DESC {
             ByteWidth: len,

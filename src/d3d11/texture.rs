@@ -20,42 +20,23 @@ impl Texture2D {
     /// Creates a new texture.
     pub fn new(
         device: &ID3D11Device,
-        dims: (u32, u32, u32),
+        (width, height): (u32, u32),
+        levels: u32,
         uflags: u32,
         fmt: D3DFORMAT,
         pool: D3DPOOL,
-        mut ms_ty: D3DMULTISAMPLE_TYPE,
-        mut ms_qlt: u32,
     ) -> Result<Self> {
-        let mut bind_flags = 0;
-
-        let (usage, cpu_flags) = if uflags & D3DUSAGE_RENDERTARGET != 0 {
-            bind_flags |= D3D11_BIND_RENDER_TARGET;
-            (D3D11_USAGE_DEFAULT, 0)
-        } else if uflags & D3DUSAGE_DEPTHSTENCIL != 0 {
-            bind_flags |= D3D11_BIND_DEPTH_STENCIL;
-            ms_ty = 0;
-            ms_qlt = 0;
-            (D3D11_USAGE_DEFAULT, 0)
-        } else {
-            d3d_usage_to_d3d11(uflags, pool)?
-        };
+        let (usage, bind_flags, cpu_flags) = d3d_usage_to_d3d11(uflags, pool)?;
 
         let fmt = d3d_format_to_dxgi(fmt);
 
-        if bind_flags == 0 && usage != D3D11_USAGE_STAGING {
-            // Even if the app doesn't end up using this in a shader,
-            // this is the only bind flag we could choose for it.
-            bind_flags |= D3D11_BIND_SHADER_RESOURCE;
-        }
-
         let desc = D3D11_TEXTURE2D_DESC {
-            Width: dims.0,
-            Height: dims.1,
-            MipLevels: dims.2,
+            Width: width,
+            Height: height,
+            MipLevels: levels,
             ArraySize: 1,
             Format: fmt,
-            SampleDesc: d3d9_to_dxgi_samples(ms_ty, ms_qlt),
+            SampleDesc: d3d9_to_dxgi_samples(0, 0),
             Usage: usage,
             BindFlags: bind_flags,
             CPUAccessFlags: cpu_flags,
@@ -67,6 +48,78 @@ impl Texture2D {
 
             let result = device.CreateTexture2D(&desc, ptr::null(), &mut ptr);
             check_hresult(result, "Failed to create 2D texture")?;
+
+            ComPtr::new(ptr)
+        };
+
+        Ok(Self { texture })
+    }
+
+    /// Creates a new cube map texture.
+    pub fn new_cube_texture(
+        device: &ID3D11Device,
+        dimension: u32,
+        levels: u32,
+        uflags: u32,
+        fmt: D3DFORMAT,
+        pool: D3DPOOL,
+    ) -> Result<Self> {
+        let (usage, bind_flags, cpu_flags) = d3d_usage_to_d3d11(uflags, pool)?;
+        let fmt = d3d_format_to_dxgi(fmt);
+
+        let desc = D3D11_TEXTURE2D_DESC {
+            Width: dimension,
+            Height: dimension,
+            MipLevels: levels,
+            ArraySize: 6,
+            Format: fmt,
+            SampleDesc: d3d9_to_dxgi_samples(0, 0),
+            Usage: usage,
+            BindFlags: bind_flags,
+            CPUAccessFlags: cpu_flags,
+            MiscFlags: 0,
+        };
+
+        let texture = unsafe {
+            let mut ptr = ptr::null_mut();
+
+            let result = device.CreateTexture2D(&desc, ptr::null(), &mut ptr);
+            check_hresult(result, "Failed to create cube texture")?;
+
+            ComPtr::new(ptr)
+        };
+
+        Ok(Self { texture })
+    }
+
+    /// Creates a new render target.
+    pub fn new_rt(
+        device: &ID3D11Device,
+        (width, height): (u32, u32),
+        fmt: D3DFORMAT,
+        ms_ty: D3DMULTISAMPLE_TYPE,
+        ms_qlt: u32,
+    ) -> Result<Self> {
+        let fmt = d3d_format_to_dxgi(fmt);
+
+        let desc = D3D11_TEXTURE2D_DESC {
+            Width: width,
+            Height: height,
+            MipLevels: 1,
+            ArraySize: 1,
+            Format: fmt,
+            SampleDesc: d3d9_to_dxgi_samples(ms_ty, ms_qlt),
+            Usage: D3D11_USAGE_DEFAULT,
+            BindFlags: D3D11_BIND_RENDER_TARGET,
+            CPUAccessFlags: 0,
+            MiscFlags: 0,
+        };
+
+        let texture = unsafe {
+            let mut ptr = ptr::null_mut();
+
+            let result = device.CreateTexture2D(&desc, ptr::null(), &mut ptr);
+            check_hresult(result, "Failed to create render target texture")?;
 
             ComPtr::new(ptr)
         };
@@ -88,6 +141,39 @@ impl Texture2D {
         };
 
         Ok(view)
+    }
+
+    /// Creates a new depth/stencil buffer.
+    pub fn new_ds(
+        device: &ID3D11Device,
+        (width, height): (u32, u32),
+        fmt: D3DFORMAT,
+    ) -> Result<Self> {
+        let fmt = d3d_format_to_dxgi(fmt);
+
+        let desc = D3D11_TEXTURE2D_DESC {
+            Width: width,
+            Height: height,
+            MipLevels: 1,
+            ArraySize: 1,
+            Format: fmt,
+            SampleDesc: d3d9_to_dxgi_samples(0, 0),
+            Usage: D3D11_USAGE_DEFAULT,
+            BindFlags: D3D11_BIND_DEPTH_STENCIL,
+            CPUAccessFlags: 0,
+            MiscFlags: 0,
+        };
+
+        let texture = unsafe {
+            let mut ptr = ptr::null_mut();
+
+            let result = device.CreateTexture2D(&desc, ptr::null(), &mut ptr);
+            check_hresult(result, "Failed to create depth/stencil texture")?;
+
+            ComPtr::new(ptr)
+        };
+
+        Ok(Self { texture })
     }
 
     /// Creates a depth / stencil view from this texture.

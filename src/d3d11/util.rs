@@ -9,7 +9,7 @@ use crate::Result;
 pub fn d3d_usage_to_d3d11(
     uflags: u32,
     pool: D3DPOOL,
-) -> Result<(D3D11_USAGE, D3D11_CPU_ACCESS_FLAG)> {
+) -> Result<(D3D11_USAGE, D3D11_BIND_FLAG, D3D11_CPU_ACCESS_FLAG)> {
     let mut usage = D3D11_USAGE_DEFAULT;
     let mut cpu_flags = 0;
 
@@ -40,5 +40,13 @@ pub fn d3d_usage_to_d3d11(
         _ => error!("Unsupported memory pool: {}", pool),
     }
 
-    Ok((usage, cpu_flags))
+    let bind_flags = if usage != D3D11_USAGE_STAGING {
+        // Even if the app doesn't end up using this in a shader,
+        // this is the only bind flag we could choose for it.
+        D3D11_BIND_SHADER_RESOURCE
+    } else {
+        0
+    };
+
+    Ok((usage, bind_flags, cpu_flags))
 }

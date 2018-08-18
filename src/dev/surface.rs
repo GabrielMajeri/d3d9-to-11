@@ -11,7 +11,7 @@ use crate::core::{fmt::dxgi_format_to_d3d, msample::dxgi_samples_to_d3d9, *};
 use crate::d3d11;
 use crate::Error;
 
-use super::{Device, Resource, Texture};
+use super::{Device, Resource};
 
 /// Represents a 2D contiguous array of pixels.
 #[interface(IDirect3DSurface9)]
@@ -20,9 +20,6 @@ pub struct Surface {
     refs: AtomicU32,
     // Reference to the texture we own, or our parent texture.
     texture: d3d11::Texture2D,
-    // An index representing the sub-resource we are owning.
-    // Can be 0 to indicate a top-level resource.
-    subresource: u32,
     // Extra data required for this surface type.
     data: SurfaceData,
 }
@@ -38,8 +35,8 @@ pub enum SurfaceData {
     RenderTarget(ComPtr<ID3D11RenderTargetView>),
     /// This surface is owning a depth / stencil buffer.
     DepthStencil(ComPtr<ID3D11DepthStencilView>),
-    /// This surface is a mip level of a bigger 2D texture.
-    SubTexture(*const Texture),
+    /// This surface is part of a bigger texture.
+    SubResource(u32),
 }
 
 impl Surface {
@@ -47,16 +44,15 @@ impl Surface {
     pub fn new(
         device: *const Device,
         texture: d3d11::Texture2D,
-        subresource: u32,
+        usage: u32,
         pool: D3DPOOL,
         data: SurfaceData,
     ) -> ComPtr<Self> {
         let surface = Self {
             __vtable: Box::new(Self::create_vtable()),
-            resource: Resource::new(device, pool, D3DRTYPE_SURFACE),
+            resource: Resource::new(device, usage, pool, D3DRTYPE_SURFACE),
             refs: AtomicU32::new(1),
             texture,
-            subresource,
             data,
         };
 
@@ -64,9 +60,15 @@ impl Surface {
     }
 
     /// Retrieves a reference to the subresource this surface represents.
-    pub fn subresource(&mut self) -> (*mut ID3D11Resource, u32) {
+    pub fn subresource(&self) -> (*mut ID3D11Resource, u32) {
         let resource = self.texture.as_resource();
-        (resource, self.subresource)
+        let subresource = if let SurfaceData::SubResource(sr) = self.data {
+            sr
+        } else {
+            0
+        };
+
+        (resource, subresource)
     }
 
     /// If this surface is a render target, retrieves the associated RT view.
@@ -82,15 +84,6 @@ impl Surface {
     pub fn depth_stencil_view(&self) -> Option<&mut ID3D11DepthStencilView> {
         if let SurfaceData::DepthStencil(ref view) = self.data {
             Some(view.as_mut())
-        } else {
-            None
-        }
-    }
-
-    /// If this surface is a mip level of a texture, retrieves a reference to the texture.
-    pub fn subtexture(&self) -> Option<&Texture> {
-        if let SurfaceData::SubTexture(texture) = self.data {
-            Some(unsafe { &*texture })
         } else {
             None
         }
@@ -117,16 +110,8 @@ impl ComInterface<IDirect3DResource9Vtbl> for Surface {
 #[implementation(IDirect3DSurface9)]
 impl Surface {
     /// Gets the container of this resource.
-    fn get_container(&self, _riid: &GUID, ret: *mut usize) -> Error {
-        let ret = check_mut_ref(ret)?;
-
-        *ret = if let SurfaceData::SubTexture(texture) = self.data {
-            com_ref(texture) as usize
-        } else {
-            com_ref(self.device()) as usize
-        };
-
-        Error::Success
+    fn get_container(&self, _riid: &GUID, _ret: *mut usize) -> Error {
+        unimplemented!()
     }
 
     /// Retrieves a description of this surface.
@@ -141,14 +126,7 @@ impl Surface {
         ret.Format = dxgi_format_to_d3d(desc.Format);
         ret.Type = D3DRTYPE_SURFACE;
 
-        use self::SurfaceData::*;
-        ret.Usage = match self.data {
-            RenderTarget(_) => D3DUSAGE_RENDERTARGET,
-            DepthStencil(_) => D3DUSAGE_DEPTHSTENCIL,
-            SubTexture(tex) => unsafe { (*tex).usage() },
-            None => 0,
-        };
-
+        ret.Usage = self.usage();
         ret.Pool = self.pool();
 
         let (ms_ty, ms_qlt) = dxgi_samples_to_d3d9(desc.SampleDesc);
@@ -160,19 +138,19 @@ impl Surface {
 
     // -- Memory mapping functions --
 
-    fn lock_rect(&mut self, ret: *mut D3DLOCKED_RECT, r: *const RECT, flags: u32) -> Error {
-        self.subtexture()
-            .map(|tex| tex.lock_rect(self.subresource, ret, r, flags))
-            .ok_or_else(|| {
-                error!("Memory mapping is only implemented for (sub)textures");
-                Error::InvalidCall
-            })?
+    fn lock_rect(&mut self, ret: *mut D3DLOCKED_RECT, _r: *const RECT, flags: u32) -> Error {
+        let ret = check_mut_ref(ret)?;
+        let (res, subres) = self.subresource();
+        *ret = self
+            .device_context()
+            .map(res, subres, flags, self.usage())?;
+        Error::Success
     }
 
     fn unlock_rect(&self) -> Error {
-        self.subtexture()
-            .map(|tex| tex.unlock_rect(self.subresource))
-            .ok_or(Error::InvalidCall)?
+        let (res, subres) = self.subresource();
+        self.device_context().unmap(res, subres);
+        Error::Success
     }
 
     // -- GDI interop functions --

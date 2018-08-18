@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::{mem, ptr};
+use std::{cmp, mem, ptr};
 
 use winapi::shared::{d3d9::*, d3d9caps::D3DCAPS9, d3d9types::*, dxgi::IDXGIFactory, windef::*};
 use winapi::um::{
@@ -417,15 +417,7 @@ impl Device {
         }
 
         // First we need to create a texture we will render to.
-        let texture = d3d11::Texture2D::new(
-            &self.device,
-            (width, height, 1),
-            D3DUSAGE_RENDERTARGET,
-            fmt,
-            D3DPOOL_DEFAULT,
-            ms_ty,
-            ms_qlt,
-        )?;
+        let texture = d3d11::Texture2D::new_rt(&self.device, (width, height), fmt, ms_ty, ms_qlt)?;
 
         *ret = self.create_render_target_helper(texture)?.into();
 
@@ -487,8 +479,8 @@ impl Device {
         width: u32,
         height: u32,
         fmt: D3DFORMAT,
-        ms_ty: D3DMULTISAMPLE_TYPE,
-        ms_qlt: u32,
+        _ms_ty: D3DMULTISAMPLE_TYPE,
+        _ms_qlt: u32,
         discard: u32,
         ret: *mut *mut Surface,
         shared_handle: usize,
@@ -504,15 +496,7 @@ impl Device {
             error!("Discarding depth/stencil buffer not supported");
         }
 
-        let texture = d3d11::Texture2D::new(
-            &self.device,
-            (width, height, 1),
-            D3DUSAGE_DEPTHSTENCIL,
-            fmt,
-            D3DPOOL_DEFAULT,
-            ms_ty,
-            ms_qlt,
-        )?;
+        let texture = d3d11::Texture2D::new_ds(&self.device, (width, height), fmt)?;
 
         let ds_view = texture.create_ds_view(&self.device)?;
 
@@ -570,14 +554,13 @@ impl Device {
 
         let texture = d3d11::Texture2D::new(
             &self.device,
-            (width, height, 1),
+            (width, height),
+            1,
             0,
             fmt,
             // We ignore the pool, we need this surface to always be CPU-readable
             // (i.e. D3D11_USAGE_STAGING), since that's its intended use.
             D3DPOOL_SYSTEMMEM,
-            0,
-            1,
         )?;
 
         let data = SurfaceData::None;
@@ -653,7 +636,7 @@ impl Device {
         &self,
         width: u32,
         height: u32,
-        levels: u32,
+        mut levels: u32,
         usage: u32,
         fmt: D3DFORMAT,
         pool: D3DPOOL,
@@ -667,16 +650,16 @@ impl Device {
             return Error::InvalidCall;
         }
 
-        let texture = d3d11::Texture2D::new(
-            &self.device,
-            (width, height, levels),
-            usage,
-            fmt,
-            pool,
-            // D3D9 does not have multisampled textures.
-            0,
-            0,
-        )?;
+        if levels == 0 {
+            levels = 32 - cmp::max(width, height).leading_zeros();
+        }
+
+        if usage & D3DUSAGE_AUTOGENMIPMAP != 0 {
+            warn!("Autom mip-map generation not yet supported");
+        }
+
+        let texture =
+            d3d11::Texture2D::new(&self.device, (width, height), levels, usage, fmt, pool)?;
 
         *ret = Texture::new(self, pool, texture, levels, usage).into();
 
