@@ -375,6 +375,22 @@ impl Device {
         self.check_swap_chain(sc)?.get_display_mode(dm)
     }
 
+    // -- Gamma control functions --
+
+    /// Sets the current gamma ramp.
+    fn set_gamma_ramp(&mut self, sc: u32, flags: u32, ramp: *const D3DGAMMARAMP) {
+        self.check_swap_chain(sc)
+            .and_then(|sc| check_ref(ramp).and_then(|ramp| sc.set_gamma_ramp(flags, ramp)))
+            .unwrap_or_else(|_| error!("Failed to set gamma ramp"));
+    }
+
+    /// Retrieves the monitor's gamma ramp.
+    fn get_gamma_ramp(&self, sc: u32, ret: *mut D3DGAMMARAMP) {
+        self.check_swap_chain(sc)
+            .and_then(|sc| check_mut_ref(ret).and_then(|ret| sc.get_gamma_ramp(ret)))
+            .unwrap_or_else(|_| error!("Failed to retrieve gamma ramp"));
+    }
+
     // -- Render target functions --
 
     /// Creates a new render target.
@@ -947,9 +963,6 @@ impl Device {
     fn get_f_v_f() {
         unimplemented!()
     }
-    fn get_gamma_ramp() {
-        unimplemented!()
-    }
     fn get_indices() {
         unimplemented!()
     }
@@ -996,9 +1009,6 @@ impl Device {
         unimplemented!()
     }
     fn set_f_v_f() {
-        unimplemented!()
-    }
-    fn set_gamma_ramp() {
         unimplemented!()
     }
     fn set_indices() {

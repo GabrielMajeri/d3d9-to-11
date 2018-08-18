@@ -111,8 +111,7 @@ impl SwapChain {
                     error!("Disabling multisample antialiasing");
                     1
                 } else {
-                    // Clamp between 1 and 16.
-                    cmp::min(16, cmp::max(1, pp.MultiSampleType))
+                    pp.MultiSampleType
                 };
 
                 d3d9_to_dxgi_samples(count, pp.MultiSampleQuality)
@@ -201,6 +200,47 @@ impl SwapChain {
         check_hresult(result, "Failed to retrieve swap chain buffer")?;
 
         Ok(ComPtr::new(ptr).into())
+    }
+
+    // Retrieves this swap chain's containing output.
+    fn output(&self) -> Result<ComPtr<IDXGIOutput>> {
+        let output = unsafe {
+            let mut ptr = ptr::null_mut();
+            let result = self.swap_chain.GetContainingOutput(&mut ptr);
+            check_hresult(result, "Failed to get swap chain's output")?;
+            ComPtr::new(ptr)
+        };
+
+        Ok(output)
+    }
+
+    /// Sets the associated output's gamma ramp.
+    pub fn set_gamma_ramp(&self, flags: u32, _ramp: &D3DGAMMARAMP) -> Result<()> {
+        if self.pp.Windowed == 1 {
+            return Err(Error::InvalidCall);
+        }
+
+        // winapi is missing this constant.
+        const D3DSGR_CALIBRATE: u32 = 1;
+
+        if flags & D3DSGR_CALIBRATE != 0 {
+            warn!("Gamma calibration isn't implemented");
+        }
+
+        let _output = self.output()?;
+
+        error!("Setting gamma ramp is not supported");
+
+        Ok(())
+    }
+
+    /// Gets the associated output's gamma ramp.
+    pub fn get_gamma_ramp(&self, _ramp: &mut D3DGAMMARAMP) -> Result<()> {
+        let _output = self.output()?;
+
+        error!("Getting gamma ramp is not supported");
+
+        Ok(())
     }
 }
 
