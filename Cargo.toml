@@ -16,6 +16,7 @@ log = "0.4"
 env_logger = "0.5"
 comptr = { git = "https://github.com/GabrielMajeri/comptr-rs" }
 com-impl = { git = "https://github.com/GabrielMajeri/com-impl-rs" }
+bitflags = "1"
 
 [dependencies.winapi]
 version = "0.3"

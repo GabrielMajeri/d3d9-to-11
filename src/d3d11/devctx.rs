@@ -31,14 +31,14 @@ impl DeviceContext {
         &self,
         res: *mut ID3D11Resource,
         subres: u32,
-        flags: u32,
-        usage: u32,
+        flags: LockFlags,
+        usage: UsageFlags,
     ) -> Result<D3DLOCKED_RECT> {
-        let map_flags = if usage & D3DUSAGE_WRITEONLY != 0 {
+        let map_flags = if usage.intersects(UsageFlags::WRITE_ONLY) {
             // NOOVERWRITE must come first, since in D3D11 it's a superset of discard.
-            if flags & D3DLOCK_NOOVERWRITE != 0 {
+            if flags.intersects(LockFlags::NO_OVERWRITE) {
                 D3D11_MAP_WRITE_NO_OVERWRITE
-            } else if flags & D3DLOCK_DISCARD != 0 {
+            } else if flags.intersects(LockFlags::DISCARD) {
                 D3D11_MAP_WRITE_DISCARD
             } else {
                 D3D11_MAP_WRITE
@@ -51,7 +51,7 @@ impl DeviceContext {
             // then remove this warning.
             error!("Reading data from a resource might not work");
 
-            if flags & D3DLOCK_READONLY != 0 {
+            if flags.intersects(LockFlags::READ_ONLY) {
                 D3D11_MAP_READ
             } else {
                 D3D11_MAP_READ_WRITE
@@ -61,7 +61,7 @@ impl DeviceContext {
         let gpu_flags = {
             let mut fl = 0;
 
-            if flags & D3DLOCK_DONOTWAIT != 0 {
+            if flags.intersects(LockFlags::DO_NOT_WAIT) {
                 fl |= D3D11_MAP_FLAG_DO_NOT_WAIT;
             }
 

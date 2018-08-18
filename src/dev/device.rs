@@ -182,7 +182,13 @@ impl Device {
         let rt_view = texture.create_rt_view(&self.device)?;
 
         let data = SurfaceData::RenderTarget(rt_view);
-        let surface = Surface::new(self, texture, 0, D3DPOOL_DEFAULT, data);
+        let surface = Surface::new(
+            self,
+            texture,
+            UsageFlags::empty(),
+            MemoryPool::Default,
+            data,
+        );
 
         Ok(surface)
     }
@@ -502,7 +508,13 @@ impl Device {
 
         let data = SurfaceData::DepthStencil(ds_view);
 
-        *ret = Surface::new(self, texture, 0, D3DPOOL_DEFAULT, data).into();
+        *ret = Surface::new(
+            self,
+            texture,
+            UsageFlags::empty(),
+            MemoryPool::Default,
+            data,
+        ).into();
 
         Error::Success
     }
@@ -541,7 +553,7 @@ impl Device {
         width: u32,
         height: u32,
         fmt: D3DFORMAT,
-        pool: D3DPOOL,
+        pool: MemoryPool,
         ret: *mut *mut Surface,
         shared_handle: usize,
     ) -> Error {
@@ -556,17 +568,17 @@ impl Device {
             &self.device,
             (width, height),
             1,
-            0,
+            UsageFlags::empty(),
             fmt,
             // We ignore the pool, we need this surface to always be CPU-readable
             // (i.e. D3D11_USAGE_STAGING), since that's its intended use.
-            D3DPOOL_SYSTEMMEM,
+            MemoryPool::SystemMem,
         )?;
 
         let data = SurfaceData::None;
 
         // We pass in the correct pool here, for storage purposes.
-        *ret = Surface::new(self, texture, 0, pool, data).into();
+        *ret = Surface::new(self, texture, UsageFlags::empty(), pool, data).into();
 
         Error::Success
     }
@@ -585,7 +597,7 @@ impl Device {
         let dest = check_mut_ref(dest)?;
         let dp = check_ref(dp)?;
 
-        if src.pool() != D3DPOOL_SYSTEMMEM || dest.pool() != D3DPOOL_DEFAULT {
+        if src.pool() != MemoryPool::SystemMem || dest.pool() != MemoryPool::Default {
             return Error::InvalidCall;
         }
 
@@ -637,9 +649,9 @@ impl Device {
         width: u32,
         height: u32,
         mut levels: u32,
-        usage: u32,
+        usage: UsageFlags,
         fmt: D3DFORMAT,
-        pool: D3DPOOL,
+        pool: MemoryPool,
         ret: *mut *mut Texture,
         shared_handle: usize,
     ) -> Error {
@@ -654,7 +666,7 @@ impl Device {
             levels = 32 - cmp::max(width, height).leading_zeros();
         }
 
-        if usage & D3DUSAGE_AUTOGENMIPMAP != 0 {
+        if usage.intersects(UsageFlags::AUTO_GEN_MIP_MAP) {
             warn!("Autom mip-map generation not yet supported");
         }
 
@@ -671,9 +683,9 @@ impl Device {
         &self,
         edge_len: u32,
         mut levels: u32,
-        usage: u32,
+        usage: UsageFlags,
         fmt: D3DFORMAT,
-        pool: D3DPOOL,
+        pool: MemoryPool,
         ret: *mut *mut CubeTexture,
         shared_handle: usize,
     ) -> Error {
@@ -688,7 +700,7 @@ impl Device {
             levels = 32 - edge_len.leading_zeros();
         }
 
-        if usage & D3DUSAGE_AUTOGENMIPMAP != 0 {
+        if usage.intersects(UsageFlags::AUTO_GEN_MIP_MAP) {
             warn!("Autom mip-map generation not yet supported");
         }
 
@@ -856,9 +868,9 @@ impl Device {
     fn create_vertex_buffer(
         &self,
         len: u32,
-        usage: u32,
+        usage: UsageFlags,
         fvf: u32,
-        pool: D3DPOOL,
+        pool: MemoryPool,
         ret: *mut *mut VertexBuffer,
         shared_handle: usize,
     ) -> Error {
@@ -880,9 +892,9 @@ impl Device {
     fn create_index_buffer(
         &self,
         len: u32,
-        usage: u32,
+        usage: UsageFlags,
         fmt: D3DFORMAT,
-        pool: D3DPOOL,
+        pool: MemoryPool,
         ret: *mut *mut IndexBuffer,
         shared_handle: usize,
     ) -> Error {

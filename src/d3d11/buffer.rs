@@ -1,6 +1,5 @@
 use std::{mem, ptr};
 
-use winapi::shared::d3d9types::*;
 use winapi::um::d3d11::*;
 
 use comptr::ComPtr;
@@ -21,8 +20,8 @@ impl Buffer {
     pub fn new(
         device: &ID3D11Device,
         len: u32,
-        usage: u32,
-        pool: D3DPOOL,
+        usage: UsageFlags,
+        pool: MemoryPool,
         bind_flags: u32,
     ) -> Result<Self> {
         let (usage, _, cpu_flags) = d3d_usage_to_d3d11(usage, pool)?;

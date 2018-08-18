@@ -198,8 +198,8 @@ impl Context {
         adapter: u32,
         ty: D3DDEVTYPE,
         _adapter_fmt: D3DFORMAT,
-        usage: u32,
-        rt: D3DRESOURCETYPE,
+        usage: UsageFlags,
+        rt: ResourceType,
         check_fmt: D3DFORMAT,
     ) -> Error {
         let adapter = self.check_adapter(adapter)?;

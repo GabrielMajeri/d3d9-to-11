@@ -2,6 +2,7 @@ use winapi::shared::{d3d9::*, d3d9types::*};
 
 use com_impl::{implementation, ComInterface};
 
+use crate::core::*;
 use crate::dev::{Device, Resource};
 use crate::Error;
 
@@ -17,9 +18,9 @@ impl BaseTexture {
     /// Initializes a new base texture.
     pub fn new(
         device: *const Device,
-        usage: u32,
-        pool: D3DPOOL,
-        rtype: D3DRESOURCETYPE,
+        usage: UsageFlags,
+        pool: MemoryPool,
+        rtype: ResourceType,
         levels: u32,
     ) -> Self {
         Self {

@@ -1,7 +1,4 @@
-use winapi::shared::{
-    d3d9::*,
-    d3d9types::{D3DPOOL, D3DRESOURCETYPE},
-};
+use winapi::shared::d3d9::*;
 use winapi::um::unknwnbase::IUnknownVtbl;
 
 use com_impl::{implementation, ComInterface};
@@ -18,11 +15,11 @@ pub struct Resource {
     /// Need to hold a reference back to the parent device.
     device: *const Device,
     /// Usage flags of this resource.
-    usage: u32,
+    usage: UsageFlags,
     /// Memory pool from which this resource was allocated.
-    pool: D3DPOOL,
+    pool: MemoryPool,
     /// The type of this resource.
-    ty: D3DRESOURCETYPE,
+    ty: ResourceType,
     /// Priority of this resource.
     /// Higher value indicates this resource should be evicted last from VRAM.
     priority: u32,
@@ -30,7 +27,12 @@ pub struct Resource {
 
 impl Resource {
     /// Creates a new base resource structure.
-    pub fn new(device: *const Device, usage: u32, pool: D3DPOOL, ty: D3DRESOURCETYPE) -> Self {
+    pub fn new(
+        device: *const Device,
+        usage: UsageFlags,
+        pool: MemoryPool,
+        ty: ResourceType,
+    ) -> Self {
         Self {
             device,
             usage,
@@ -51,12 +53,12 @@ impl Resource {
     }
 
     /// Retrieves the usage flags of this resource.
-    pub fn usage(&self) -> u32 {
+    pub fn usage(&self) -> UsageFlags {
         self.usage
     }
 
     /// Retrieves the memory pool in which this resource belongs.
-    pub fn pool(&self) -> u32 {
+    pub fn pool(&self) -> MemoryPool {
         self.pool
     }
 }
@@ -90,7 +92,7 @@ impl std::ops::DerefMut for Thunk {
 #[implementation(IDirect3DResource9)]
 impl Resource {
     /// Retrieves the type of this resource.
-    fn get_type(self: &Thunk) -> D3DRESOURCETYPE {
+    fn get_type(self: &Thunk) -> ResourceType {
         self.ty
     }
 

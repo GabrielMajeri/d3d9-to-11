@@ -220,7 +220,7 @@ impl Adapter {
     }
 
     /// Checks if a given format is supported for a specific resource usage.
-    pub fn is_format_supported(&self, fmt: D3DFORMAT, rt: D3DRESOURCETYPE, usage: u32) -> bool {
+    pub fn is_format_supported(&self, fmt: D3DFORMAT, rt: ResourceType, usage: UsageFlags) -> bool {
         let fmt = d3d_format_to_dxgi(fmt);
 
         let support = unsafe {
@@ -233,21 +233,22 @@ impl Adapter {
 
         // Returns true if a resource type is _not_ supported.
         let check_rt = |d3d9_rt, sp| (rt == d3d9_rt) && ((support & sp) == 0);
-        let check_usage = |d3d9_usage, uf| ((usage & d3d9_usage) != 0) && ((support & uf) == 0);
+        let check_usage = |d3d9_usage, uf| usage.intersects(d3d9_usage) && ((support & uf) == 0);
 
         // First we have to check the resource type.
-        let lacks_support = check_rt(D3DRTYPE_SURFACE, D3D11_FORMAT_SUPPORT_TEXTURE2D) ||
-            check_rt(D3DRTYPE_VOLUME, D3D11_FORMAT_SUPPORT_TEXTURE3D) ||
-            check_rt(D3DRTYPE_TEXTURE, D3D11_FORMAT_SUPPORT_TEXTURE2D) ||
-            check_rt(D3DRTYPE_VOLUMETEXTURE, D3D11_FORMAT_SUPPORT_TEXTURE3D) ||
-            check_rt(D3DRTYPE_CUBETEXTURE, D3D11_FORMAT_SUPPORT_TEXTURECUBE) ||
-            check_rt(D3DRTYPE_VERTEXBUFFER, D3D11_FORMAT_SUPPORT_IA_VERTEX_BUFFER) ||
-            check_rt(D3DRTYPE_INDEXBUFFER, D3D11_FORMAT_SUPPORT_IA_INDEX_BUFFER) ||
+        use crate::core::ResourceType::*;
+        let lacks_support = check_rt(Surface, D3D11_FORMAT_SUPPORT_TEXTURE2D) ||
+            check_rt(Volume, D3D11_FORMAT_SUPPORT_TEXTURE3D) ||
+            check_rt(Texture, D3D11_FORMAT_SUPPORT_TEXTURE2D) ||
+            check_rt(VolumeTexture, D3D11_FORMAT_SUPPORT_TEXTURE3D) ||
+            check_rt(CubeTexture, D3D11_FORMAT_SUPPORT_TEXTURECUBE) ||
+            check_rt(VertexBuffer, D3D11_FORMAT_SUPPORT_IA_VERTEX_BUFFER) ||
+            check_rt(IndexBuffer, D3D11_FORMAT_SUPPORT_IA_INDEX_BUFFER) ||
 
             // Now we also need to check the proper usage.
-            check_usage(D3DUSAGE_AUTOGENMIPMAP, D3D11_FORMAT_SUPPORT_MIP_AUTOGEN) ||
-            check_usage(D3DUSAGE_RENDERTARGET, D3D11_FORMAT_SUPPORT_RENDER_TARGET) ||
-            check_usage(D3DUSAGE_DEPTHSTENCIL, D3D11_FORMAT_SUPPORT_DEPTH_STENCIL);
+            check_usage(UsageFlags::AUTO_GEN_MIP_MAP, D3D11_FORMAT_SUPPORT_MIP_AUTOGEN) ||
+            check_usage(UsageFlags::RENDER_TARGET, D3D11_FORMAT_SUPPORT_RENDER_TARGET) ||
+            check_usage(UsageFlags::DEPTH_STENCIL, D3D11_FORMAT_SUPPORT_DEPTH_STENCIL);
 
         // Due to the way the check functions are written, we need to negate this result.
         !lacks_support

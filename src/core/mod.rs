@@ -3,6 +3,9 @@
 //! This module contains the fundamental building blocks on top of which the rest
 //! of the library is built.
 
+mod enums;
+pub use self::enums::*;
+
 pub mod fmt;
 
 pub mod msample;

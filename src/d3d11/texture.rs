@@ -22,9 +22,9 @@ impl Texture2D {
         device: &ID3D11Device,
         (width, height): (u32, u32),
         levels: u32,
-        uflags: u32,
+        uflags: UsageFlags,
         fmt: D3DFORMAT,
-        pool: D3DPOOL,
+        pool: MemoryPool,
     ) -> Result<Self> {
         let (usage, bind_flags, cpu_flags) = d3d_usage_to_d3d11(uflags, pool)?;
 
@@ -60,9 +60,9 @@ impl Texture2D {
         device: &ID3D11Device,
         dimension: u32,
         levels: u32,
-        uflags: u32,
+        uflags: UsageFlags,
         fmt: D3DFORMAT,
-        pool: D3DPOOL,
+        pool: MemoryPool,
     ) -> Result<Self> {
         let (usage, bind_flags, cpu_flags) = d3d_usage_to_d3d11(uflags, pool)?;
         let fmt = d3d_format_to_dxgi(fmt);

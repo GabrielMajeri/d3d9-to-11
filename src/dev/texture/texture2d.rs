@@ -26,14 +26,14 @@ impl Texture {
     /// Creates a new texture object.
     pub fn new(
         device: *const Device,
-        pool: D3DPOOL,
+        pool: MemoryPool,
         texture: d3d11::Texture2D,
         levels: u32,
-        usage: u32,
+        usage: UsageFlags,
     ) -> ComPtr<Self> {
         let texture = Self {
             __vtable: Box::new(Self::create_vtable()),
-            base: BaseTexture::new(device, usage, pool, D3DRTYPE_TEXTURE, levels),
+            base: BaseTexture::new(device, usage, pool, ResourceType::Texture, levels),
             refs: AtomicU32::new(1),
             texture,
         };
@@ -98,7 +98,7 @@ impl Texture {
         ret: *mut D3DLOCKED_RECT,
         // TODO: maybe track dirty regions for efficiency.
         _r: *const RECT,
-        flags: u32,
+        flags: LockFlags,
     ) -> Error {
         let ret = check_mut_ref(ret)?;
 

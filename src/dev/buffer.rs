@@ -25,14 +25,14 @@ impl VertexBuffer {
     /// Creates a new vertex buffer.
     pub fn new(
         device: &Device,
-        pool: D3DPOOL,
+        pool: MemoryPool,
         fvf: u32,
         buffer: d3d11::Buffer,
-        usage: u32,
+        usage: UsageFlags,
     ) -> ComPtr<Self> {
         let vb = Self {
             __vtable: Box::new(Self::create_vtable()),
-            resource: Resource::new(device, usage, pool, D3DRTYPE_VERTEXBUFFER),
+            resource: Resource::new(device, usage, pool, ResourceType::VertexBuffer),
             refs: AtomicU32::new(1),
             fvf,
             buffer,
@@ -66,17 +66,17 @@ impl VertexBuffer {
 
         let desc = self.buffer.desc();
 
-        ret.Type = D3DRTYPE_VERTEXBUFFER;
+        ret.Type = ResourceType::VertexBuffer as u32;
         ret.Size = desc.ByteWidth;
         ret.Format = D3DFMT_R32F;
         ret.FVF = self.fvf;
-        ret.Pool = self.pool();
-        ret.Usage = self.usage();
+        ret.Pool = self.pool() as u32;
+        ret.Usage = self.usage().bits();
 
         Error::Success
     }
 
-    fn lock(&self, offset: u32, _size: u32, ret: *mut *mut u8, flags: u32) -> Error {
+    fn lock(&self, offset: u32, _size: u32, ret: *mut *mut u8, flags: LockFlags) -> Error {
         let ret = check_mut_ref(ret)?;
 
         let resource = self.buffer.as_resource();
@@ -115,13 +115,13 @@ impl IndexBuffer {
     pub fn new(
         device: &Device,
         fmt: D3DFORMAT,
-        pool: D3DPOOL,
+        pool: MemoryPool,
         buffer: d3d11::Buffer,
-        usage: u32,
+        usage: UsageFlags,
     ) -> ComPtr<Self> {
         let vb = Self {
             __vtable: Box::new(Self::create_vtable()),
-            resource: Resource::new(device, usage, pool, D3DRTYPE_INDEXBUFFER),
+            resource: Resource::new(device, usage, pool, ResourceType::IndexBuffer),
             refs: AtomicU32::new(1),
             fmt,
             buffer,
@@ -155,16 +155,16 @@ impl IndexBuffer {
 
         let desc = self.buffer.desc();
 
-        ret.Type = D3DRTYPE_INDEXBUFFER;
+        ret.Type = ResourceType::IndexBuffer as u32;
         ret.Size = desc.ByteWidth;
         ret.Format = self.fmt;
-        ret.Pool = self.pool();
-        ret.Usage = self.usage();
+        ret.Pool = self.pool() as u32;
+        ret.Usage = self.usage().bits();
 
         Error::Success
     }
 
-    fn lock(&self, offset: u32, _size: u32, ret: *mut *mut u8, flags: u32) -> Error {
+    fn lock(&self, offset: u32, _size: u32, ret: *mut *mut u8, flags: LockFlags) -> Error {
         let ret = check_mut_ref(ret)?;
 
         let resource = self.buffer.as_resource();

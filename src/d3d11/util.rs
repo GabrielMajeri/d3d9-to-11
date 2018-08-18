@@ -1,35 +1,33 @@
-use winapi::shared::d3d9types::*;
 use winapi::um::d3d11::*;
 
+use crate::core::*;
 use crate::Result;
 
 /// Converts D3D9's buffer/texture usage and pool flags to corresponding D3D11 flags.
 ///
 /// Returns an error if a certain combination is invalid.
 pub fn d3d_usage_to_d3d11(
-    uflags: u32,
-    pool: D3DPOOL,
+    uflags: UsageFlags,
+    pool: MemoryPool,
 ) -> Result<(D3D11_USAGE, D3D11_BIND_FLAG, D3D11_CPU_ACCESS_FLAG)> {
     let mut usage = D3D11_USAGE_DEFAULT;
     let mut cpu_flags = 0;
 
+    let write_to = UsageFlags::DYNAMIC | UsageFlags::WRITE_ONLY;
+
     match pool {
-        // Default resources are placed in VRAM.
-        D3DPOOL_DEFAULT => {
-            if uflags & D3DUSAGE_DYNAMIC != 0 || uflags & D3DUSAGE_WRITEONLY != 0 {
+        MemoryPool::Default => {
+            if uflags.intersects(write_to) {
                 usage = D3D11_USAGE_DYNAMIC;
                 cpu_flags = D3D11_CPU_ACCESS_WRITE;
             }
         }
-        // Managed resources are placed in VRAM if possible, and are backed by system RAM.
-        D3DPOOL_MANAGED => {
+        MemoryPool::Managed => {
             usage = D3D11_USAGE_DYNAMIC;
             cpu_flags = D3D11_CPU_ACCESS_WRITE;
         }
-        // SystemMem resources are stored in RAM.
-        // Because of this, they are not accessible in shaders.
-        D3DPOOL_SYSTEMMEM => {
-            if uflags & D3DUSAGE_DYNAMIC != 0 {
+        MemoryPool::SystemMem => {
+            if uflags.intersects(write_to) {
                 usage = D3D11_USAGE_DYNAMIC;
                 cpu_flags = D3D11_CPU_ACCESS_WRITE;
             } else {
@@ -37,7 +35,7 @@ pub fn d3d_usage_to_d3d11(
                 cpu_flags = D3D11_CPU_ACCESS_WRITE | D3D11_CPU_ACCESS_READ;
             }
         }
-        _ => error!("Unsupported memory pool: {}", pool),
+        _ => error!("Unsupported memory pool: {:?}", pool),
     }
 
     let bind_flags = if usage != D3D11_USAGE_STAGING {

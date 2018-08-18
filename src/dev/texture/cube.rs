@@ -1,12 +1,13 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use winapi::shared::{d3d9::*, d3d9types::*};
+use winapi::shared::{d3d9::*, windef::RECT};
 use winapi::um::unknwnbase::{IUnknown, IUnknownVtbl};
 
 use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
 
-use crate::dev::*;
+use crate::dev::Device;
+use crate::Error;
 use crate::{core::*, d3d11};
 
 use super::BaseTexture;
@@ -27,12 +28,12 @@ impl CubeTexture {
         device: *const Device,
         texture: d3d11::Texture2D,
         levels: u32,
-        usage: u32,
-        pool: D3DPOOL,
+        usage: UsageFlags,
+        pool: MemoryPool,
     ) -> ComPtr<Self> {
         let tc = Self {
             __vtable: Box::new(Self::create_vtable()),
-            base: BaseTexture::new(device, usage, pool, D3DRTYPE_CUBETEXTURE, levels),
+            base: BaseTexture::new(device, usage, pool, ResourceType::CubeTexture, levels),
             refs: AtomicU32::new(1),
             texture,
         };
@@ -72,7 +73,10 @@ impl CubeTexture {
     fn unlock_rect() {
         unimplemented!()
     }
-    fn add_dirty_rect() {
-        unimplemented!()
+
+    fn add_dirty_rect(&mut self, _face: u32, r: *const RECT) -> Error {
+        let _r = check_ref(r)?;
+        warn!("AddDirtyRect is not implemented");
+        Error::Success
     }
 }

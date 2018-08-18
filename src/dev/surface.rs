@@ -44,13 +44,13 @@ impl Surface {
     pub fn new(
         device: *const Device,
         texture: d3d11::Texture2D,
-        usage: u32,
-        pool: D3DPOOL,
+        usage: UsageFlags,
+        pool: MemoryPool,
         data: SurfaceData,
     ) -> ComPtr<Self> {
         let surface = Self {
             __vtable: Box::new(Self::create_vtable()),
-            resource: Resource::new(device, usage, pool, D3DRTYPE_SURFACE),
+            resource: Resource::new(device, usage, pool, ResourceType::Surface),
             refs: AtomicU32::new(1),
             texture,
             data,
@@ -126,8 +126,8 @@ impl Surface {
         ret.Format = dxgi_format_to_d3d(desc.Format);
         ret.Type = D3DRTYPE_SURFACE;
 
-        ret.Usage = self.usage();
-        ret.Pool = self.pool();
+        ret.Usage = self.usage().bits();
+        ret.Pool = self.pool() as u32;
 
         let (ms_ty, ms_qlt) = dxgi_samples_to_d3d9(desc.SampleDesc);
         ret.MultiSampleType = ms_ty;
@@ -138,7 +138,7 @@ impl Surface {
 
     // -- Memory mapping functions --
 
-    fn lock_rect(&mut self, ret: *mut D3DLOCKED_RECT, _r: *const RECT, flags: u32) -> Error {
+    fn lock_rect(&mut self, ret: *mut D3DLOCKED_RECT, _r: *const RECT, flags: LockFlags) -> Error {
         let ret = check_mut_ref(ret)?;
         let (res, subres) = self.subresource();
         *ret = self
