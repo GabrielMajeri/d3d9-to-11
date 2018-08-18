@@ -44,6 +44,13 @@ impl VertexBuffer {
     }
 }
 
+impl std::ops::Deref for VertexBuffer {
+    type Target = Resource;
+    fn deref(&self) -> &Resource {
+        &self.resource
+    }
+}
+
 impl_iunknown!(struct VertexBuffer: IUnknown, IDirect3DResource9, IDirect3DVertexBuffer9);
 
 impl ComInterface<IDirect3DResource9Vtbl> for VertexBuffer {
@@ -65,7 +72,7 @@ impl VertexBuffer {
         ret.Size = desc.ByteWidth;
         ret.Format = D3DFMT_R32F;
         ret.FVF = self.fvf;
-        ret.Pool = self.resource.pool();
+        ret.Pool = self.pool();
         ret.Usage = self.usage;
 
         Error::Success
@@ -75,7 +82,7 @@ impl VertexBuffer {
         let ret = check_mut_ref(ret)?;
 
         let resource = self.buffer.as_resource();
-        let ctx = self.resource.device_context();
+        let ctx = self.device_context();
         let mapped = ctx.map(resource, 0, flags, self.usage)?;
 
         // TODO: allow buffers to be mapped multiple times.
@@ -90,7 +97,7 @@ impl VertexBuffer {
 
     fn unlock(&self) -> Error {
         let resource = self.buffer.as_resource();
-        let ctx = self.resource.device_context();
+        let ctx = self.device_context();
         ctx.unmap(resource, 0);
         Error::Success
     }
@@ -128,6 +135,13 @@ impl IndexBuffer {
     }
 }
 
+impl std::ops::Deref for IndexBuffer {
+    type Target = Resource;
+    fn deref(&self) -> &Resource {
+        &self.resource
+    }
+}
+
 impl_iunknown!(struct IndexBuffer: IUnknown, IDirect3DResource9, IDirect3DIndexBuffer9);
 
 impl ComInterface<IDirect3DResource9Vtbl> for IndexBuffer {
@@ -148,7 +162,7 @@ impl IndexBuffer {
         ret.Type = D3DRTYPE_INDEXBUFFER;
         ret.Size = desc.ByteWidth;
         ret.Format = self.fmt;
-        ret.Pool = self.resource.pool();
+        ret.Pool = self.pool();
         ret.Usage = self.usage;
 
         Error::Success
@@ -158,7 +172,7 @@ impl IndexBuffer {
         let ret = check_mut_ref(ret)?;
 
         let resource = self.buffer.as_resource();
-        let ctx = self.resource.device_context();
+        let ctx = self.device_context();
         let mapped = ctx.map(resource, 0, flags, self.usage)?;
 
         // TODO: allow buffers to be mapped multiple times.
@@ -173,7 +187,7 @@ impl IndexBuffer {
 
     fn unlock(&self) -> Error {
         let resource = self.buffer.as_resource();
-        let ctx = self.resource.device_context();
+        let ctx = self.device_context();
         ctx.unmap(resource, 0);
         Error::Success
     }

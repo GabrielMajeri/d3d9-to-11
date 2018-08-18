@@ -48,14 +48,9 @@ impl Surface {
         device: *const Device,
         texture: d3d11::Texture2D,
         subresource: u32,
+        pool: D3DPOOL,
         data: SurfaceData,
     ) -> ComPtr<Self> {
-        use self::SurfaceData::*;
-        let pool = match data {
-            None | RenderTarget(_) | DepthStencil(_) => D3DPOOL_DEFAULT,
-            SubTexture(tex) => unsafe { (*tex).pool() },
-        };
-
         let surface = Self {
             __vtable: Box::new(Self::create_vtable()),
             resource: Resource::new(device, pool, D3DRTYPE_SURFACE),
@@ -66,11 +61,6 @@ impl Surface {
         };
 
         unsafe { new_com_interface(surface) }
-    }
-
-    /// Retrieves the memory pool of this resource.
-    pub fn pool(&self) -> D3DPOOL {
-        self.resource.pool()
     }
 
     /// Retrieves a reference to the subresource this surface represents.
@@ -107,6 +97,13 @@ impl Surface {
     }
 }
 
+impl std::ops::Deref for Surface {
+    type Target = Resource;
+    fn deref(&self) -> &Resource {
+        &self.resource
+    }
+}
+
 impl_iunknown!(struct Surface: IUnknown, IDirect3DResource9, IDirect3DSurface9);
 
 impl ComInterface<IDirect3DResource9Vtbl> for Surface {
@@ -126,7 +123,7 @@ impl Surface {
         *ret = if let SurfaceData::SubTexture(texture) = self.data {
             com_ref(texture) as usize
         } else {
-            com_ref(self.resource.device()) as usize
+            com_ref(self.device()) as usize
         };
 
         Error::Success
@@ -152,7 +149,7 @@ impl Surface {
             None => 0,
         };
 
-        ret.Pool = self.resource.pool();
+        ret.Pool = self.pool();
 
         let (ms_ty, ms_qlt) = dxgi_samples_to_d3d9(desc.SampleDesc);
         ret.MultiSampleType = ms_ty;

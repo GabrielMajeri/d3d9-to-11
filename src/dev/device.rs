@@ -182,7 +182,7 @@ impl Device {
         let rt_view = texture.create_rt_view(&self.device)?;
 
         let data = SurfaceData::RenderTarget(rt_view);
-        let surface = Surface::new(self, texture, 0, data);
+        let surface = Surface::new(self, texture, 0, D3DPOOL_DEFAULT, data);
 
         Ok(surface)
     }
@@ -518,7 +518,7 @@ impl Device {
 
         let data = SurfaceData::DepthStencil(ds_view);
 
-        *ret = Surface::new(self, texture, 0, data).into();
+        *ret = Surface::new(self, texture, 0, D3DPOOL_DEFAULT, data).into();
 
         Error::Success
     }

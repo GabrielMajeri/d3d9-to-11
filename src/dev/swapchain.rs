@@ -329,7 +329,7 @@ impl SwapChain {
         let buffer = self.buffer(idx)?;
 
         // Create and return a pointer to the surface.
-        *surf = Surface::new(self.parent, buffer, 0, SurfaceData::None).into();
+        *surf = Surface::new(self.parent, buffer, 0, D3DPOOL_DEFAULT, SurfaceData::None).into();
 
         Error::Success
     }

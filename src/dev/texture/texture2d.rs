@@ -7,22 +7,19 @@ use winapi::um::unknwnbase::{IUnknown, IUnknownVtbl};
 use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
 
+use crate::dev::*;
 use crate::{core::*, d3d11, Error};
 
-use super::{Device, Resource, Surface, SurfaceData};
+use super::BaseTexture;
 
 /// Structure containing an image and its mip sub-levels.
 ///
 /// Closely matches the `ID3D11Texture2D` interface.
-/// Also contains a shader resource view for the texture, since in D3D9
-/// textures can only be used in shaders, and not for much else.
 #[interface(IDirect3DTexture9)]
 pub struct Texture {
-    resource: Resource,
+    base: BaseTexture,
     refs: AtomicU32,
     texture: d3d11::Texture2D,
-    // Number of mip map levels in this texture.
-    levels: u32,
     usage: u32,
 }
 
@@ -37,19 +34,13 @@ impl Texture {
     ) -> ComPtr<Self> {
         let texture = Self {
             __vtable: Box::new(Self::create_vtable()),
+            base: BaseTexture::new(device, pool, D3DRTYPE_TEXTURE, levels),
             refs: AtomicU32::new(1),
-            resource: Resource::new(device, pool, D3DRTYPE_TEXTURE),
             texture,
-            levels,
             usage,
         };
 
         unsafe { new_com_interface(texture) }
-    }
-
-    /// Retrieves the pool in which this texture was allocated.
-    pub fn pool(&self) -> D3DPOOL {
-        self.resource.pool()
     }
 
     /// Retrieves the usage of this texture.
@@ -58,38 +49,20 @@ impl Texture {
     }
 }
 
-impl_iunknown!(struct Texture: IUnknown, IDirect3DResource9, IDirect3DBaseTexture9, IDirect3DTexture9);
-
-impl ComInterface<IDirect3DResource9Vtbl> for Texture {
-    fn create_vtable() -> IDirect3DResource9Vtbl {
-        let mut vtbl: IDirect3DResource9Vtbl = Resource::create_vtable();
-        vtbl.parent = Self::create_vtable();
-        vtbl
+impl std::ops::Deref for Texture {
+    type Target = BaseTexture;
+    fn deref(&self) -> &BaseTexture {
+        &self.base
     }
 }
 
-#[implementation(IDirect3DBaseTexture9)]
-impl Texture {
-    fn set_l_o_d(&mut self, _lod: u32) -> u32 {
-        unimplemented!()
-    }
-    fn get_l_o_d(&self) -> u32 {
-        unimplemented!()
-    }
+impl_iunknown!(struct Texture: IUnknown, IDirect3DResource9, IDirect3DBaseTexture9, IDirect3DTexture9);
 
-    /// Returns the count of mip levels in this texture.
-    fn get_level_count(&self) -> u32 {
-        self.levels
-    }
-
-    fn set_auto_gen_filter_type(&mut self, _filter: D3DTEXTUREFILTERTYPE) -> Error {
-        unimplemented!()
-    }
-    fn get_auto_gen_filter_type(&self) -> D3DTEXTUREFILTERTYPE {
-        unimplemented!()
-    }
-    fn generate_mip_sub_levels(&mut self) {
-        unimplemented!()
+impl ComInterface<IDirect3DBaseTexture9Vtbl> for Texture {
+    fn create_vtable() -> IDirect3DBaseTexture9Vtbl {
+        let mut vtbl: IDirect3DBaseTexture9Vtbl = BaseTexture::create_vtable();
+        vtbl.parent.parent = Self::create_vtable();
+        vtbl
     }
 }
 
@@ -110,13 +83,16 @@ impl Texture {
     fn get_surface_level(&self, level: u32, ret: *mut *mut Surface) -> Error {
         let ret = check_mut_ref(ret)?;
 
-        if level >= self.get_level_count() {
+        if level >= self.base.get_level_count() {
             return Error::InvalidCall;
         }
 
+        let device = self.device();
+        let texture = self.texture.clone();
+        let pool = self.pool();
         let data = SurfaceData::SubTexture(self as *const _);
 
-        *ret = Surface::new(self.resource.device(), self.texture.clone(), level, data).into();
+        *ret = Surface::new(device, texture, level, pool, data).into();
 
         Error::Success
     }
@@ -133,7 +109,7 @@ impl Texture {
         let ret = check_mut_ref(ret)?;
 
         let resource = self.texture.as_resource();
-        let ctx = self.resource.device_context();
+        let ctx = self.device_context();
 
         *ret = ctx.map(resource, level, flags, self.usage)?;
 
@@ -143,7 +119,7 @@ impl Texture {
     /// Unlocks the locked rectangle of memory.
     pub fn unlock_rect(&self, level: u32) -> Error {
         let resource = self.texture.as_resource();
-        let ctx = self.resource.device_context();
+        let ctx = self.device_context();
 
         ctx.unmap(resource, level);
 
