@@ -14,7 +14,7 @@ mod surface;
 pub use self::surface::{Surface, SurfaceData};
 
 mod texture;
-pub use self::texture::Texture;
+pub use self::texture::{BaseTexture, CubeTexture, Texture};
 
 pub mod state;
 

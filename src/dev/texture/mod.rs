@@ -7,3 +7,6 @@ pub use self::base::BaseTexture;
 
 mod texture2d;
 pub use self::texture2d::Texture;
+
+mod cube;
+pub use self::cube::CubeTexture;

@@ -666,9 +666,40 @@ impl Device {
         Error::Success
     }
 
-    fn create_cube_texture() {
-        unimplemented!()
+    /// Creates a new cube map texture.
+    fn create_cube_texture(
+        &self,
+        edge_len: u32,
+        mut levels: u32,
+        usage: u32,
+        fmt: D3DFORMAT,
+        pool: D3DPOOL,
+        ret: *mut *mut CubeTexture,
+        shared_handle: usize,
+    ) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        if shared_handle != 0 {
+            error!("Shared resources are not supported");
+            return Error::InvalidCall;
+        }
+
+        if levels == 0 {
+            levels = 32 - edge_len.leading_zeros();
+        }
+
+        if usage & D3DUSAGE_AUTOGENMIPMAP != 0 {
+            warn!("Autom mip-map generation not yet supported");
+        }
+
+        let texture =
+            d3d11::Texture2D::new_cube_texture(&self.device, edge_len, levels, usage, fmt, pool)?;
+
+        *ret = CubeTexture::new(self, texture, levels, usage, pool).into();
+
+        Error::Success
     }
+
     fn create_volume_texture() {
         unimplemented!()
     }
