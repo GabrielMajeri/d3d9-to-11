@@ -319,6 +319,25 @@ impl Context {
             warn!("Application requested the creation of a multi-GPU logical device");
         }
 
+        if flags & D3DCREATE_FPU_PRESERVE == 0 {
+            // We need to set the right x87 control word to disable FPU exceptions.
+            unsafe {
+                // First we need to retrieve its current value.
+                let mut c = 0u16;
+                asm!("fnstcw $0" : "=*m"(&c) : : : "volatile");
+
+                // Clear (some of) the control word's bits:
+                // - Sets rounding mode to nearest even.
+                // - Enable single precision floats.
+                c &= 0b11_11_00_00_11 << 6;
+
+                // Mask all exceptions.
+                c |= (1 << 6) - 1;
+
+                asm!("fldcw $0" : : "*m"(&c) : : : "volatile")
+            }
+        }
+
         // This struct stores the original device creation parameters.
         let cp = D3DDEVICE_CREATION_PARAMETERS {
             AdapterOrdinal: adapter,
