@@ -2,7 +2,7 @@ use std::ptr;
 
 use winapi::shared::d3d9types::*;
 
-use crate::dev::shader::VertexDeclaration;
+use crate::dev::shader::*;
 
 impl_state! {
     /// Structure containing all state related to vertex processing.
@@ -60,6 +60,7 @@ impl_state! {
         tex_coord_index: D3DTSS_TEXCOORDINDEX = 0,
         texture_transform_flags: D3DTSS_TEXTURETRANSFORMFLAGS = D3DTTFF_DISABLE;
         // Extra state variables
-        vertex_decl: *const VertexDeclaration = ptr::null_mut(),
+        vertex_shader: *const VertexShader = ptr::null(),
+        vertex_decl: *const VertexDeclaration = ptr::null(),
     }
 }

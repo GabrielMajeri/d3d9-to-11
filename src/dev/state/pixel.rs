@@ -1,4 +1,8 @@
+use std::ptr;
+
 use winapi::shared::d3d9types::*;
+
+use crate::dev::shader::*;
 
 impl_state! {
     /// Structure containing all state related to pixel processing.
@@ -106,5 +110,7 @@ impl_state! {
         color_arg0: D3DTSS_COLORARG0 = D3DTA_CURRENT,
         alpha_arg0: D3DTSS_ALPHAARG0 = D3DTA_CURRENT,
         result_arg: D3DTSS_RESULTARG = D3DTA_CURRENT;
+        // Extra state variables
+        pixel_shader: *const PixelShader = ptr::null(),
     }
 }

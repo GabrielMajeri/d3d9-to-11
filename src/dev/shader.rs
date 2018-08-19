@@ -7,9 +7,117 @@ use winapi::um::unknwnbase::{IUnknown, IUnknownVtbl};
 use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
 
-use crate::{core::*, Error};
+use crate::{core::*, Error, Result};
 
 use super::Device;
+
+/// Given a pointer to an array of tokens (forming up a shader),
+/// returns a box containing the tokens.
+fn tokens_to_box(tokens: *const u32) -> Box<[u32]> {
+    let tokens = unsafe {
+        // We don't know how long the shader will be.
+        let mut len = 0;
+
+        loop {
+            len += 1;
+            // We go until we find the end token.
+            if *tokens.offset(len) == 0x0000_FFFF {
+                break;
+            }
+        }
+
+        std::slice::from_raw_parts(tokens, len as usize)
+    };
+
+    tokens.into()
+}
+
+macro_rules! impl_shader {
+    ($name:ident, $iface:ident) => {
+        #[implementation($iface)]
+        impl $name {
+            /// Retrieves the device which created this shader.
+            fn get_device(&self, ret: *mut *mut Device) -> Error {
+                let ret = check_mut_ref(ret)?;
+                *ret = com_ref(self.device);
+                Error::Success
+            }
+
+            /// Retrieve the shader's byte code.
+            fn get_function(&self, ret: *mut u32, num: *mut u32) -> Error {
+                if ret.is_null() {
+                    let num = check_mut_ref(num)?;
+
+                    *num = self.code.len() as u32;
+                } else {
+                    let code = unsafe {
+                        let ret = check_mut_ref(ret)?;
+                        slice::from_raw_parts_mut(ret, self.code.len())
+                    };
+
+                    code.copy_from_slice(&self.code);
+                }
+                Error::Success
+            }
+        }
+    };
+}
+
+/// Vertex shader class.
+#[interface(IDirect3DVertexShader9)]
+pub struct VertexShader {
+    refs: AtomicU32,
+    device: *const Device,
+    code: Box<[u32]>,
+}
+
+impl VertexShader {
+    /// Create a new vertex shader.
+    pub fn new(device: &Device, func: *const u32) -> Result<ComPtr<Self>> {
+        let code = tokens_to_box(func);
+
+        let vs = Self {
+            __vtable: Box::new(Self::create_vtable()),
+            refs: AtomicU32::new(1),
+            device,
+            code,
+        };
+
+        Ok(unsafe { new_com_interface(vs) })
+    }
+}
+
+impl_iunknown!(struct VertexShader: IUnknown, IDirect3DVertexShader9);
+
+impl_shader!(VertexShader, IDirect3DVertexShader9);
+
+/// Pixel shader class.
+#[interface(IDirect3DPixelShader9)]
+pub struct PixelShader {
+    refs: AtomicU32,
+    device: *const Device,
+    code: Box<[u32]>,
+}
+
+impl PixelShader {
+    /// Create a new pixel shader.
+    pub fn new(device: &Device, func: *const u32) -> Result<ComPtr<Self>> {
+        let code = tokens_to_box(func);
+
+        let ps = Self {
+            __vtable: Box::new(Self::create_vtable()),
+            refs: AtomicU32::new(1),
+            device,
+            code,
+        };
+
+        Ok(unsafe { new_com_interface(ps) })
+    }
+}
+
+impl_iunknown!(struct PixelShader: IUnknown, IDirect3DPixelShader9);
+
+impl_shader!(PixelShader, IDirect3DPixelShader9);
 
 /// Declaration of a vertex shader's inputs.
 #[interface(IDirect3DVertexDeclaration9)]

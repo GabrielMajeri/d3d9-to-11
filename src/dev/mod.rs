@@ -2,23 +2,24 @@
 //! the absolutely massive IDirect3DDevice9 interface.
 
 mod device;
-pub use self::device::Device;
+pub use self::device::*;
 
 mod swapchain;
-pub use self::swapchain::SwapChain;
+pub use self::swapchain::*;
 
 mod resource;
-pub use self::resource::Resource;
+pub use self::resource::*;
 
 mod surface;
-pub use self::surface::{Surface, SurfaceData};
+pub use self::surface::*;
 
 mod texture;
-pub use self::texture::{BaseTexture, CubeTexture, Texture};
+pub use self::texture::*;
 
 pub mod state;
 
-pub mod shader;
+mod shader;
+pub use self::shader::*;
 
 mod buffer;
-pub use self::buffer::{IndexBuffer, VertexBuffer};
+pub use self::buffer::*;

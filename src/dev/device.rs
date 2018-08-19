@@ -10,7 +10,6 @@ use winapi::um::{
 use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
 
-use super::shader::VertexDeclaration;
 use super::state::{DeviceState, StateBlock};
 use super::*;
 
@@ -819,28 +818,38 @@ impl Device {
     }
 
     /// Sets the current vertex declaration.
-    fn set_vertex_declaration(&mut self, decl: *mut VertexDeclaration) -> Error {
-        let decl = check_ref(decl)?;
+    fn set_vertex_declaration(&mut self, decl: *const VertexDeclaration) -> Error {
         self.istate.set_vertex_declaration(decl);
         Error::Success
     }
 
     /// Gets the current vertex declaration.
-    fn get_vertex_declaration(&self, ret: *mut *mut VertexDeclaration) -> Error {
+    fn get_vertex_declaration(&self, ret: *mut *const VertexDeclaration) -> Error {
         let ret = check_mut_ref(ret)?;
         *ret = com_ref(self.istate.get_vertex_declaration());
         Error::Success
     }
 
-    fn create_vertex_shader() {
-        unimplemented!()
+    /// Creates a vertex shader from its bytecode.
+    fn create_vertex_shader(&self, func: *const u32, ret: *mut *mut VertexShader) -> Error {
+        let ret = check_mut_ref(ret)?;
+        *ret = VertexShader::new(self, func)?.into();
+        Error::Success
     }
-    fn set_vertex_shader() {
-        unimplemented!()
+
+    /// Sets the current vertex shader.
+    fn set_vertex_shader(&mut self, vs: *const VertexShader) -> Error {
+        self.istate.set_vertex_shader(vs);
+        Error::Success
     }
-    fn get_vertex_shader() {
-        unimplemented!()
+
+    /// Retrieves the current vertex shader;
+    fn get_vertex_shader(&self, ret: *mut *const VertexShader) -> Error {
+        let ret = check_mut_ref(ret)?;
+        *ret = self.istate.get_vertex_shader();
+        Error::Success
     }
+
     fn set_vertex_shader_constant_b() {
         unimplemented!()
     }
@@ -940,15 +949,26 @@ impl Device {
         Error::Success
     }
 
-    fn create_pixel_shader() {
-        unimplemented!()
+    /// Create a pixel shader from its bytecode.
+    fn create_pixel_shader(&self, func: *const u32, ret: *mut *mut PixelShader) -> Error {
+        let ret = check_mut_ref(ret)?;
+        *ret = PixelShader::new(self, func)?.into();
+        Error::Success
     }
-    fn set_pixel_shader() {
-        unimplemented!()
+
+    /// Sets the current pixel shader.
+    fn set_pixel_shader(&mut self, ps: *const PixelShader) -> Error {
+        self.istate.set_pixel_shader(ps);
+        Error::Success
     }
-    fn get_pixel_shader() {
-        unimplemented!()
+
+    /// Gets the current pixel shader.
+    fn get_pixel_shader(&self, ret: *mut *const PixelShader) -> Error {
+        let ret = check_mut_ref(ret)?;
+        *ret = self.istate.get_pixel_shader();
+        Error::Success
     }
+
     fn set_pixel_shader_constant_b() {
         unimplemented!()
     }

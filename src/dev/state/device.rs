@@ -101,7 +101,23 @@ impl DeviceState {
             .unwrap_or(ptr::null_mut())
     }
 
-    pub fn set_vertex_declaration(&mut self, decl: &VertexDeclaration) {
+    pub fn set_vertex_shader(&mut self, shader: *const VertexShader) {
+        self.vertex.vertex_shader = shader;
+    }
+
+    pub fn get_vertex_shader(&self) -> *const VertexShader {
+        self.vertex.vertex_shader
+    }
+
+    pub fn set_pixel_shader(&mut self, shader: *const PixelShader) {
+        self.pixel.pixel_shader = shader;
+    }
+
+    pub fn get_pixel_shader(&self) -> *const PixelShader {
+        self.pixel.pixel_shader
+    }
+
+    pub fn set_vertex_declaration(&mut self, decl: *const VertexDeclaration) {
         self.vertex.vertex_decl = decl;
     }
 
