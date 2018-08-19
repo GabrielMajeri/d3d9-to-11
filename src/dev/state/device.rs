@@ -1,6 +1,12 @@
+use std::collections::HashMap;
+use std::{mem, ptr};
+
 use winapi::shared::d3d9types::*;
 
+use nalgebra::{self as na, Matrix4};
+
 use crate::dev::shader::VertexDeclaration;
+use crate::dev::*;
 
 use super::*;
 
@@ -12,7 +18,10 @@ use super::*;
 pub struct DeviceState {
     vertex: VertexState,
     pixel: PixelState,
+    textures: [*mut BaseTexture; 20],
     viewport: D3DVIEWPORT9,
+    transforms: HashMap<D3DTRANSFORMSTATETYPE, Matrix4<f32>>,
+    material: D3DMATERIAL9,
 }
 
 impl DeviceState {
@@ -71,12 +80,25 @@ impl DeviceState {
         }
     }
 
-    pub fn set_viewport(&mut self, vp: &D3DVIEWPORT9) {
-        self.viewport = *vp;
+    pub fn set_texture(&mut self, mut stage: u32, texture: *mut BaseTexture) {
+        if D3DVERTEXTEXTURESAMPLER0 <= stage && stage <= D3DVERTEXTEXTURESAMPLER3 {
+            stage = 16 + stage - D3DVERTEXTEXTURESAMPLER0;
+        }
+
+        if let Some(tx) = self.textures.get_mut(stage as usize) {
+            *tx = texture;
+        }
     }
 
-    pub fn get_viewport(&self) -> D3DVIEWPORT9 {
-        self.viewport
+    pub fn get_texture(&self, mut stage: u32) -> *mut BaseTexture {
+        if D3DVERTEXTEXTURESAMPLER0 <= stage && stage <= D3DVERTEXTEXTURESAMPLER3 {
+            stage = 16 + stage - D3DVERTEXTEXTURESAMPLER0;
+        }
+
+        self.textures
+            .get(stage as usize)
+            .cloned()
+            .unwrap_or(ptr::null_mut())
     }
 
     pub fn set_vertex_declaration(&mut self, decl: &VertexDeclaration) {
@@ -86,6 +108,30 @@ impl DeviceState {
     pub fn get_vertex_declaration(&self) -> *const VertexDeclaration {
         self.vertex.vertex_decl
     }
+
+    pub fn set_viewport(&mut self, vp: &D3DVIEWPORT9) {
+        self.viewport = *vp;
+    }
+
+    pub fn get_viewport(&self) -> D3DVIEWPORT9 {
+        self.viewport
+    }
+
+    pub fn set_transform(&mut self, ty: D3DTRANSFORMSTATETYPE, value: Matrix4<f32>) {
+        self.transforms.insert(ty, value);
+    }
+
+    pub fn get_transform(&self, ty: D3DTRANSFORMSTATETYPE) -> Matrix4<f32> {
+        self.transforms.get(&ty).cloned().unwrap_or_else(na::one)
+    }
+
+    pub fn set_material(&mut self, mat: &D3DMATERIAL9) {
+        self.material = *mat;
+    }
+
+    pub fn get_material(&self) -> D3DMATERIAL9 {
+        self.material
+    }
 }
 
 impl Default for DeviceState {
@@ -93,15 +139,11 @@ impl Default for DeviceState {
         let mut state = Self {
             vertex: VertexState::default(),
             pixel: PixelState::default(),
+            textures: [ptr::null_mut(); 20],
             // The default viewport depends on the default render target's size.
-            viewport: D3DVIEWPORT9 {
-                X: 0,
-                Y: 0,
-                Width: 0,
-                Height: 0,
-                MinZ: 0.0,
-                MaxZ: 0.0,
-            },
+            viewport: unsafe { mem::zeroed() },
+            transforms: HashMap::with_capacity(4),
+            material: unsafe { mem::zeroed() },
         };
 
         // The first texture stage has a different default state.

@@ -972,11 +972,17 @@ impl Device {
         unimplemented!()
     }
 
-    fn get_texture() {
-        unimplemented!()
+    /// Binds a texture to a stage.
+    fn set_texture(&mut self, stage: u32, texture: *mut BaseTexture) -> Error {
+        self.istate.set_texture(stage, texture);
+        Error::Success
     }
-    fn set_texture() {
-        unimplemented!()
+
+    /// Retrieves the bound texture of a certain stage.
+    fn get_texture(&self, stage: u32, ret: *mut *mut BaseTexture) -> Error {
+        let ret = check_mut_ref(ret)?;
+        *ret = self.istate.get_texture(stage);
+        Error::Success
     }
 
     /// Set a state for the texture bound to a certain stage.
@@ -987,7 +993,6 @@ impl Device {
         value: u32,
     ) -> Error {
         self.istate.set_texture_stage_state(stage, ty, value);
-
         Error::Success
     }
 
@@ -999,9 +1004,7 @@ impl Device {
         ret: *mut u32,
     ) -> Error {
         let ret = check_mut_ref(ret)?;
-
         *ret = self.istate.get_texture_stage_state(stage, ty);
-
         Error::Success
     }
 
@@ -1036,6 +1039,49 @@ impl Device {
 
     // -- Fixed function pipeline --
 
+    /// Sets the current material.
+    fn set_material(&mut self, mat: *const D3DMATERIAL9) -> Error {
+        let mat = check_ref(mat)?;
+        self.istate.set_material(mat);
+        Error::Success
+    }
+
+    /// Retrieves the currently set material.
+    fn get_material(&self, ret: *mut D3DMATERIAL9) -> Error {
+        let ret = check_mut_ref(ret)?;
+        *ret = self.istate.get_material();
+        Error::Success
+    }
+
+    /// Sets a transformation matrix to a value.
+    fn set_transform(&mut self, ty: D3DTRANSFORMSTATETYPE, mat: *const D3DMATRIX) -> Error {
+        if (D3DTS_VIEW <= ty && ty <= D3DTS_PROJECTION)
+            || (D3DTS_TEXTURE0 <= ty && ty <= D3DTS_TEXTURE7)
+            || (256 <= ty && ty <= 512)
+        {
+            let mat = check_ref(mat)?;
+            self.istate
+                .set_transform(ty, unsafe { mem::transmute(*mat) });
+            Error::Success
+        } else {
+            Error::InvalidCall
+        }
+    }
+
+    /// Retrieves a transformation matrix.
+    fn get_transform(&self, ty: D3DTRANSFORMSTATETYPE, ret: *mut D3DMATRIX) -> Error {
+        if (D3DTS_VIEW <= ty && ty <= D3DTS_PROJECTION)
+            || (D3DTS_TEXTURE0 <= ty && ty <= D3DTS_TEXTURE7)
+            || (256 <= ty && ty <= 512)
+        {
+            let ret = check_mut_ref(ret)?;
+            *ret = unsafe { mem::transmute(self.istate.get_transform(ty)) };
+            Error::Success
+        } else {
+            Error::InvalidCall
+        }
+    }
+
     fn delete_patch() {
         unimplemented!()
     }
@@ -1066,9 +1112,6 @@ impl Device {
     fn get_light_enable() {
         unimplemented!()
     }
-    fn get_material() {
-        unimplemented!()
-    }
     fn get_n_patch_mode() {
         unimplemented!()
     }
@@ -1076,9 +1119,6 @@ impl Device {
         unimplemented!()
     }
     fn get_software_vertex_processing() {
-        unimplemented!()
-    }
-    fn get_transform() {
         unimplemented!()
     }
     fn light_enable() {
@@ -1111,9 +1151,6 @@ impl Device {
     fn set_light() {
         unimplemented!()
     }
-    fn set_material() {
-        unimplemented!()
-    }
     fn set_n_patch_mode() {
         unimplemented!()
     }
@@ -1121,9 +1158,6 @@ impl Device {
         unimplemented!()
     }
     fn set_software_vertex_processing() {
-        unimplemented!()
-    }
-    fn set_transform() {
         unimplemented!()
     }
 }
