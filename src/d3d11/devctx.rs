@@ -49,7 +49,7 @@ impl DeviceContext {
 
             // TODO: implement some stricter checks by checking the resource's memory pool,
             // then remove this warning.
-            error!("Reading data from a resource might not work");
+            run_once!(|| error!("Reading data from a resource might not work"));
 
             if flags.intersects(LockFlags::READ_ONLY) {
                 D3D11_MAP_READ

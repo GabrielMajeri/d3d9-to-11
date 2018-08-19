@@ -197,6 +197,11 @@ impl Texture2D {
         self.texture.upcast().as_mut()
     }
 
+    /// Calculates the index of a subresource.
+    pub fn calc_subresource(&self, levels: u32, array_slice: u32, num_levels: u32) -> u32 {
+        D3D11CalcSubresource(levels, array_slice, num_levels)
+    }
+
     /// Retrieves the description of this texture.
     pub fn desc(&self) -> D3D11_TEXTURE2D_DESC {
         unsafe {

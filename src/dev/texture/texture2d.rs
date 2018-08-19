@@ -120,7 +120,9 @@ impl Texture {
         Error::Success
     }
 
-    fn add_dirty_rect(&mut self, _r: *const RECT) -> Error {
-        unimplemented!()
+    fn add_dirty_rect(&mut self, r: *const RECT) -> Error {
+        let _r = check_ref(r)?;
+        warn!("AddDirtyRect is not implemented");
+        Error::Success
     }
 }

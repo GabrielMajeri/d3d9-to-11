@@ -1,12 +1,13 @@
+use std::ptr;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use winapi::shared::{d3d9::*, windef::RECT};
+use winapi::shared::{d3d9::*, d3d9types::*, windef::RECT};
 use winapi::um::unknwnbase::{IUnknown, IUnknownVtbl};
 
 use com_impl::{implementation, interface, ComInterface};
 use comptr::ComPtr;
 
-use crate::dev::Device;
+use crate::dev::*;
 use crate::Error;
 use crate::{core::*, d3d11};
 
@@ -61,17 +62,74 @@ impl ComInterface<IDirect3DBaseTexture9Vtbl> for CubeTexture {
 
 #[implementation(IDirect3DCubeTexture9)]
 impl CubeTexture {
-    fn get_level_desc() {
-        unimplemented!()
+    /// Returns the description of a mip map level of a face.
+    fn get_level_desc(&self, level: u32, desc: *mut D3DSURFACE_DESC) -> Error {
+        let surface = {
+            let mut ptr = ptr::null_mut();
+            // We can use any face, since they are all equal.
+            self.get_cube_map_surface(0, level, &mut ptr)?;
+            ComPtr::new(ptr)
+        };
+
+        surface.get_desc(desc)
     }
-    fn get_cube_map_surface() {
-        unimplemented!()
+
+    /// Retrieves a face of this cube map.
+    fn get_cube_map_surface(&self, face: u32, level: u32, ret: *mut *mut Surface) -> Error {
+        let ret = check_mut_ref(ret)?;
+        let levels = self.get_level_count();
+
+        if face >= 6 {
+            return Error::InvalidCall;
+        }
+
+        if level >= levels {
+            return Error::InvalidCall;
+        }
+
+        let device = self.device();
+        let texture = self.texture.clone();
+        let usage = self.usage();
+        let pool = self.pool();
+        let subres = self.texture.calc_subresource(level, face, levels);
+        let data = SurfaceData::SubResource(subres);
+
+        *ret = Surface::new(device, texture, usage, pool, data).into();
+
+        Error::Success
     }
-    fn lock_rect() {
-        unimplemented!()
+
+    /// Maps a face of this cube map to memory.
+    fn lock_rect(
+        &self,
+        face: u32,
+        level: u32,
+        ret: *mut D3DLOCKED_RECT,
+        _r: *const RECT,
+        flags: LockFlags,
+    ) -> Error {
+        let ret = check_mut_ref(ret)?;
+
+        let resource = self.texture.as_resource();
+        let levels = self.get_level_count();
+        let subres = self.texture.calc_subresource(level, face, levels);
+        let ctx = self.device_context();
+
+        *ret = ctx.map(resource, subres, flags, self.usage())?;
+
+        Error::Success
     }
-    fn unlock_rect() {
-        unimplemented!()
+
+    /// Unmaps a face of this cube map.
+    fn unlock_rect(&self, face: u32, level: u32) -> Error {
+        let resource = self.texture.as_resource();
+        let levels = self.get_level_count();
+        let subres = self.texture.calc_subresource(level, face, levels);
+        let ctx = self.device_context();
+
+        ctx.unmap(resource, subres);
+
+        Error::Success
     }
 
     fn add_dirty_rect(&mut self, _face: u32, r: *const RECT) -> Error {
