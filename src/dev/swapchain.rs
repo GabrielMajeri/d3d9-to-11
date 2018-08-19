@@ -332,7 +332,7 @@ impl SwapChain {
         *surf = Surface::new(
             self.parent,
             buffer,
-            UsageFlags::empty(),
+            UsageFlags::RENDER_TARGET,
             MemoryPool::Default,
             SurfaceData::None,
         ).into();

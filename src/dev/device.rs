@@ -185,7 +185,7 @@ impl Device {
         let surface = Surface::new(
             self,
             texture,
-            UsageFlags::empty(),
+            UsageFlags::RENDER_TARGET,
             MemoryPool::Default,
             data,
         );
@@ -507,7 +507,7 @@ impl Device {
         *ret = Surface::new(
             self,
             texture,
-            UsageFlags::empty(),
+            UsageFlags::DEPTH_STENCIL,
             MemoryPool::Default,
             data,
         ).into();
