@@ -267,12 +267,12 @@ impl Device {
     // -- Device status functions --
 
     /// Resets the device, recreating all its state.
-    fn reset() {
+    fn reset(&mut self) {
         unimplemented!()
     }
 
     /// Checks that the device has not yet been lost / reset.
-    fn test_cooperative_level() -> Error {
+    fn test_cooperative_level(&self) -> Error {
         // Even if the device were lost, we wouldn't be able to do much.
         Error::Success
     }
@@ -283,7 +283,7 @@ impl Device {
     }
 
     /// Asks the driver to evict all managed resources from VRAM.
-    fn evict_managed_resources() -> Error {
+    fn evict_managed_resources(&self) -> Error {
         // Do nothing. The D3D11 driver handles everything.
         Error::Success
     }
@@ -293,18 +293,14 @@ impl Device {
     /// Returns a reference to the parent interface.
     fn get_direct_3_d(&self, ptr: *mut *mut Context) -> Error {
         let ptr = check_mut_ref(ptr)?;
-
         *ptr = com_ref(self.parent);
-
         Error::Success
     }
 
     /// Returns the caps of this device.
     fn get_device_caps(&self, caps: *mut D3DCAPS9) -> Error {
         let caps = check_mut_ref(caps)?;
-
         *caps = self.adapter().caps();
-
         Error::Success
     }
 

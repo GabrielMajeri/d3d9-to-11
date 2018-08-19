@@ -77,7 +77,7 @@ impl CubeTexture {
     /// Retrieves a face of this cube map.
     fn get_cube_map_surface(&self, face: u32, level: u32, ret: *mut *mut Surface) -> Error {
         let ret = check_mut_ref(ret)?;
-        let levels = self.get_level_count();
+        let levels = self.level_count();
 
         if face >= 6 {
             return Error::InvalidCall;
@@ -111,7 +111,7 @@ impl CubeTexture {
         let ret = check_mut_ref(ret)?;
 
         let resource = self.texture.as_resource();
-        let levels = self.get_level_count();
+        let levels = self.level_count();
         let subres = self.texture.calc_subresource(level, face, levels);
         let ctx = self.device_context();
 
@@ -123,7 +123,7 @@ impl CubeTexture {
     /// Unmaps a face of this cube map.
     fn unlock_rect(&self, face: u32, level: u32) -> Error {
         let resource = self.texture.as_resource();
-        let levels = self.get_level_count();
+        let levels = self.level_count();
         let subres = self.texture.calc_subresource(level, face, levels);
         let ctx = self.device_context();
 

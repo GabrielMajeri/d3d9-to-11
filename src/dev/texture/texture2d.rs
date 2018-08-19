@@ -76,7 +76,7 @@ impl Texture {
     fn get_surface_level(&self, level: u32, ret: *mut *mut Surface) -> Error {
         let ret = check_mut_ref(ret)?;
 
-        if level >= self.base.get_level_count() {
+        if level >= self.level_count() {
             return Error::InvalidCall;
         }
 
