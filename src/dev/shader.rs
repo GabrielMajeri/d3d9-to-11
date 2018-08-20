@@ -26,6 +26,9 @@ fn tokens_to_box(tokens: *const u32) -> Box<[u32]> {
             }
         }
 
+        // Ensure the end token is included.
+        len += 1;
+
         std::slice::from_raw_parts(tokens, len as usize)
     };
 
